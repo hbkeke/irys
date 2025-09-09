@@ -31,6 +31,25 @@ def update_next_game_time(address:str, next_game_action_time) -> bool:
     db.commit()
     return True
   
+def update_rank(address: str, rank: int) -> bool:
+
+    wallet = db.one(Wallet, Wallet.address == address)
+    if not wallet:
+        return False
+    
+    wallet.rank = rank
+    db.commit()
+    return True
+
+def update_points(address: str, points: int) -> bool:
+
+    wallet = db.one(Wallet, Wallet.address == address)
+    if not wallet:
+        return False
+    
+    wallet.points = points
+    db.commit()
+    return True
 
 def add_count_game(address: str) -> bool:
 

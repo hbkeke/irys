@@ -20,64 +20,76 @@ async def random_sleep_before_start(wallet):
     await asyncio.sleep(random_sleep)
     
 async def execute(wallets : List[Wallet], task_func):
-    semaphore = asyncio.Semaphore(min(len(wallets), Settings().threads))
+    while True:
+        semaphore = asyncio.Semaphore(min(len(wallets), Settings().threads))
 
-    if Settings().shuffle_wallets:
-        random.shuffle(wallets)
+        if Settings().shuffle_wallets:
+            random.shuffle(wallets)
 
-    async def sem_task(wallet : Wallet):
-        async with semaphore:
-            try:
-                await task_func(wallet)
-            except Exception as e:
-                logger.error(f"[{wallet.id}] failed: {e}")
+        async def sem_task(wallet : Wallet):
+            async with semaphore:
+                try:
+                    await task_func(wallet)
+                except Exception as e:
+                    logger.error(f"[{wallet.id}] failed: {e}")
 
-    tasks = [asyncio.create_task(sem_task(wallet)) for wallet in wallets]
-    await asyncio.gather(*tasks, return_exceptions=True)
+        tasks = [asyncio.create_task(sem_task(wallet)) for wallet in wallets]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+        random_pause_wallet_after_completion = random.randint(Settings().random_pause_wallet_after_completion_min,
+                                                              Settings().random_pause_wallet_after_completion_max)
+        
+        next_run = datetime.now() + timedelta(seconds=random_pause_wallet_after_completion)
+        logger.info(
+            f"Sleeping {random_pause_wallet_after_completion} seconds. "
+            f"Next run at: {next_run.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        await asyncio.sleep(random_pause_wallet_after_completion)
 
 async def activity(action: int):
     if not check_encrypt_param():
         logger.error(f"Decryption Failed | Wrong Password")
         return
 
-    while True:
-        now = datetime.now()
-        
-        if action == 1:
-            wallets = db.all(Wallet, (Wallet.next_game_action_time <= now) & (Wallet.completed == 0))
-        else:
-            wallets = db.all(Wallet)
-        range_wallets = Settings().range_wallets_to_run
-        if range_wallets != [0, 0]: 
-            start, end = range_wallets
+    try:
+        check_password_wallet = db.one(Wallet, Wallet.id == 1)
+        Client(private_key=check_password_wallet.private_key)
+
+    except Exception as e:
+        logger.error(f"Decryption Failed | Wrong Password")
+        return
+
+    wallets = db.all(Wallet)
+    range_wallets = Settings().range_wallets_to_run
+    if range_wallets != [0, 0]: 
+        start, end = range_wallets
+        wallets = [
+            wallet for i, wallet in enumerate(wallets, start=1)
+            if start <= i <= end
+        ]
+    else:
+        if Settings().exact_wallets_to_run:
             wallets = [
                 wallet for i, wallet in enumerate(wallets, start=1)
-                if start <= i <= end
+                if i in Settings().exact_wallets_to_run
             ]
-        else:
-            if Settings().exact_wallets_to_run:
-                wallets = [
-                    wallet for i, wallet in enumerate(wallets, start=1)
-                    if i in Settings().exact_wallets_to_run
-                ]
 
+    logger.info(f"Found {len(wallets)} wallets for action")
+    if action == 1 and wallets:
+        await execute(wallets, start_main_action)
 
-        if action == 1 and wallets:
-            logger.info(f"Found {len(wallets)} wallets ready for action at {now}")
-            await execute(wallets, start_main_action)
+    if action == 2 and wallets:
+        await execute(wallets, complete_games)
 
-        if action == 2 and wallets:
-            logger.info(f"Found {len(wallets)} wallets ready for action at {now}")
-            await execute(wallets, complete_games)
+    if action == 3 and wallets:
+        await execute(wallets, complete_galxe_quests)
 
-        if action == 3 and wallets:
-            logger.info(f"Found {len(wallets)} wallets ready for action at {now}")
-            await execute(wallets, complete_galxe_quests)
-            break
-
-        await asyncio.sleep(60)
+    await asyncio.sleep(60)
 
 async def start_main_action(wallet):
+    now = datetime.now()
+    if wallet.next_game_action_time >= now and wallet.completed != 0:
+        return
     await random_sleep_before_start(wallet=wallet)
     
     client = Client(private_key=wallet.private_key, proxy=wallet.proxy, network=Networks.Gravity)

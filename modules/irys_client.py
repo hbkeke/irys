@@ -86,6 +86,7 @@ class Irys(Base):
                             logger.info(f"{self.wallet} already claimed points for {tier['name']} quest")
                             logger.debug(f"Wrong with claim {e}")
 
+        await galxe_client.update_points_and_rank(campaign_id=58934)
         logger.info(f"{self.wallet} all claim or don't eligible to any points in Galxe")
 
 

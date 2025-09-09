@@ -20,6 +20,8 @@ class Wallet(Base):
     twitter_status: Mapped[str] = mapped_column(default="OK", nullable=True)
     typing_level: Mapped[int] = mapped_column(nullable=False)
     completed_games: Mapped[int] = mapped_column(nullable=True, default=None)
+    points: Mapped[int] = mapped_column(nullable=True, default=None)
+    rank: Mapped[int] = mapped_column(nullable=True, default=None)
     completed: Mapped[bool] = mapped_column(default=False)
     next_game_action_time: Mapped[datetime] = mapped_column(default=datetime.now)
 

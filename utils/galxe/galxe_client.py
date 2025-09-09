@@ -6,6 +6,7 @@ from loguru import logger
 
 from data.settings import Settings
 from utils.db_api.models import Wallet
+from utils.db_api.wallet_api import update_points, update_rank
 from utils.browser import Browser
 from utils.captcha.captcha_handler import CaptchaHandler
 from libs.eth_async.client import Client
@@ -60,7 +61,24 @@ class GalxeClient():
                     base_client = Base(client=client, wallet=self.wallet)
                     return base_client
 
+    async def update_points_and_rank(self, campaign_id: int):
+        data = await self.get_points_and_rank(campaign_id=campaign_id)
+        points = data['data']['space']['addressLoyaltyPoints']['points']
+        rank = data['data']['space']['addressLoyaltyPoints']['rank']
+        update_points(address=self.wallet.address, points=points)
+        update_rank(address=self.wallet.address, rank=rank)
+        return True
 
+    async def get_points_and_rank(self, campaign_id: int):
+        json_data = {
+            'operationName': 'SpaceLoyaltyPoints',
+            'variables': {
+                'id': campaign_id,
+                'address': f'EVM:{self.client.account.address}',
+            },
+            'query': 'query SpaceLoyaltyPoints($id: Int, $address: String!, $seasonId: Int) {\n  space(id: $id) {\n    id\n    addressLoyaltyPoints(address: $address, sprintId: $seasonId) {\n      id\n      points\n      rank\n      __typename\n    }\n    __typename\n  }\n}',
+        }
+        return await self.request(json_data=json_data)
 
     async def handle_bridge(self):
         base_client = await self.choose_available_client()
