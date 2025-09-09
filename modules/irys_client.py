@@ -70,7 +70,11 @@ class Irys(Base):
                             if sync:
                                 logger.success(f"{self.wallet} success sync quest for {tier['plays_required']} on Galxe")
                                 await asyncio.sleep(15)
-                                await galxe_client.claim_points(campaign_id=campaign_id)
+                                try:
+                                    await galxe_client.claim_points(campaign_id=campaign_id)
+                                except Exception:
+                                    await asyncio.sleep(60)
+                                    continue
                                 break 
                             else:
                                 logger.warning(f"{self.wallet} can't sync quest for {tier['plays_required']} on Galxe. Wait update")
