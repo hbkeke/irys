@@ -17,11 +17,16 @@ console = Console()
 PROJECT = 'Irys'
 
 PROJECT_ACTIONS =   [
-                    "Start Complete Games and Galxe Quests",
-                    "Start Complete Games",
-                    "Start Complete Galxe Quests",
+                    "1. Run All Activities",
+                    "2. Start Complete SpriteType Games",
+                    "3. Start Complete Galxe Quests",
                     "Back"
                     ]
+
+UTILS_ACTIONS = [
+                    "1. Reset files Folder",
+                    "Back"
+                ]
 
 async def choose_action():
     cat_question = [
@@ -52,8 +57,8 @@ async def choose_action():
     if category == PROJECT:
         actions = PROJECT_ACTIONS
 
-    if category == "Utils":
-        actions = ["Reset files Folder"]
+    if category == 'Utils':
+        actions = UTILS_ACTIONS
 
     act_question = [
         inquirer.List(
@@ -76,16 +81,16 @@ async def choose_action():
         check_encrypt_param()
         await Export.wallets_to_txt()
 
-    elif action == "Start Complete Games and Galxe Quests":
+    elif action == "1. Run All Activities":
         await activity(action=1)
 
-    elif action == "Start Complete Games":
+    elif action == "2. Start Complete SpriteType Games":
         await activity(action=2)
 
-    elif action == "Start Complete Galxe Quests":
+    elif action == "3. Start Complete Galxe Quests":
         await activity(action=3)
 
-    elif action == "Reset files Folder":
+    elif action == "1. Reset files Folder":
         console.print("This action will delete the files folder and reset it.") 
         answer = input("Are you sure you want to perform this action? y/N ")
         if answer.lower() == "y":

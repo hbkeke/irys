@@ -40,14 +40,6 @@ async def activity(action: int):
         logger.error(f"Decryption Failed | Wrong Password")
         return
 
-    try:
-        check_password_wallet = db.one(Wallet, Wallet.id == 1)
-        Client(private_key=check_password_wallet.private_key)
-
-    except Exception as e:
-        logger.error(f"Decryption Failed | Wrong Password")
-        return
-
     while True:
         now = datetime.now()
         
