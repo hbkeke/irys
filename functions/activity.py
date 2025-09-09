@@ -36,15 +36,7 @@ async def execute(wallets : List[Wallet], task_func):
         tasks = [asyncio.create_task(sem_task(wallet)) for wallet in wallets]
         await asyncio.gather(*tasks, return_exceptions=True)
 
-        random_pause_wallet_after_completion = random.randint(Settings().random_pause_wallet_after_completion_min,
-                                                              Settings().random_pause_wallet_after_completion_max)
-        
-        next_run = datetime.now() + timedelta(seconds=random_pause_wallet_after_completion)
-        logger.info(
-            f"Sleeping {random_pause_wallet_after_completion} seconds. "
-            f"Next run at: {next_run.strftime('%Y-%m-%d %H:%M:%S')}"
-        )
-        await asyncio.sleep(random_pause_wallet_after_completion)
+        await asyncio.sleep(60)
 
 async def activity(action: int):
     if not check_encrypt_param():
