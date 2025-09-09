@@ -145,6 +145,7 @@ random_eth_for_bridge:
 For your security, you can enable private key encryption by setting `private_key_encryption: true` in the `settings.yaml`. If set to `false`, encryption will be skipped.
 
 On first use, you need to fill in the `private_keys.txt` file once. After launching the program, go to `DB Actions → Import wallets to Database`.
+
 <img src="https://imgur.com/5gxa66n.png" alt="Preview" width="600"/>
 
 If encryption is enabled, you will be prompted to enter and confirm a password. Once completed, your private keys will be deleted from the private_keys.txt file and securely moved to a local database, which is created in the files folder.
