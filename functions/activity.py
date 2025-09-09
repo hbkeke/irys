@@ -19,7 +19,7 @@ async def random_sleep_before_start(wallet):
     logger.info(f"{wallet} Start at {now + timedelta(seconds=random_sleep)} sleep {random_sleep} seconds before start actions")
     await asyncio.sleep(random_sleep)
     
-async def execute(wallets : List[Wallet], task_func):
+async def execute(wallets : List[Wallet], task_func, random_pause_wallet_after_completion : int = 0):
     while True:
         semaphore = asyncio.Semaphore(min(len(wallets), Settings().threads))
 
@@ -36,18 +36,22 @@ async def execute(wallets : List[Wallet], task_func):
         tasks = [asyncio.create_task(sem_task(wallet)) for wallet in wallets]
         await asyncio.gather(*tasks, return_exceptions=True)
 
-        await asyncio.sleep(60)
+        if random_pause_wallet_after_completion == 0:
+            break
+ 
+        # update dynamically the pause time
+        random_pause_wallet_after_completion = random.randint(Settings().random_pause_wallet_after_completion_min,
+                                                              Settings().random_pause_wallet_after_completion_max)
+        
+        next_run = datetime.now() + timedelta(seconds=random_pause_wallet_after_completion)
+        logger.info(
+            f"Sleeping {random_pause_wallet_after_completion} seconds. "
+            f"Next run at: {next_run.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        await asyncio.sleep(random_pause_wallet_after_completion)
 
 async def activity(action: int):
     if not check_encrypt_param():
-        logger.error(f"Decryption Failed | Wrong Password")
-        return
-
-    try:
-        check_password_wallet = db.one(Wallet, Wallet.id == 1)
-        Client(private_key=check_password_wallet.private_key)
-
-    except Exception as e:
         logger.error(f"Decryption Failed | Wrong Password")
         return
 
