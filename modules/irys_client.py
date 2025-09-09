@@ -25,11 +25,14 @@ class Irys(Base):
         while True:
             if playing_game >= random_playing_games:
                 return True
-            await self.complete_game()
-            playing_game += 1
-            random_sleep = random.randint(Settings().random_pause_between_actions_min, Settings().random_pause_between_actions_max)
-            logger.info(f"{self.wallet} sleep {random_sleep} seconds before next game")
-            await asyncio.sleep(random_sleep)
+            game = await self.complete_game()
+            if game:
+                playing_game += 1
+                random_sleep = random.randint(Settings().random_pause_between_actions_min, Settings().random_pause_between_actions_max)
+                logger.info(f"{self.wallet} sleep {random_sleep} seconds before next game")
+                await asyncio.sleep(random_sleep)
+            else:
+                continue
 
     async def complete_galxe_quests(self,):
         completed_games = self.wallet.completed_games
