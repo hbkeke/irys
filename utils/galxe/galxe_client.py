@@ -1,6 +1,7 @@
 import random
 import uuid
 import asyncio
+import time
 from loguru import logger
 
 from data.settings import Settings
@@ -48,7 +49,7 @@ class GalxeClient():
         logger.debug(data)
         return data
 
-    async def choise_avaibale_client(self):
+    async def choose_available_client(self):
         network_values = [value for key, value in Networks.__dict__.items() if isinstance(value, Network)]
         random.shuffle(network_values)
         for network in network_values:
@@ -62,7 +63,7 @@ class GalxeClient():
 
 
     async def handle_bridge(self):
-        base_client = await self.choise_avaibale_client()
+        base_client = await self.choose_available_client()
         if not base_client:
             logger.warning(f"{self.wallet} no one Network can be choisen for ETH transfer")
             return False
@@ -74,18 +75,23 @@ class GalxeClient():
         return await self.wait_deposit(start_balance=start_balance)
 
     async def wait_deposit(self, start_balance: TokenAmount):
-        count = 0
+        timeout = 600   
+        start_time = time.time()
+
         while True:
-            if count > 600 / 5:
-                logger.warning(f"{self.wallet} deposit to gravity don't arrived after 3 minutes")
+            elapsed = time.time() - start_time
+            if elapsed > timeout:
+                logger.warning(f"{self.wallet} deposit to gravity did not arrive after {timeout} seconds")
                 return False
-            logger.info(f"{self.wallet} wait deposit to gravity")
+
+            logger.info(f"{self.wallet} waiting for deposit to gravity (elapsed: {int(elapsed)}s)")
             balance = await self.client.wallet.balance()
+
             if start_balance.Wei < balance.Wei:
+                logger.info(f"{self.wallet} deposit detected")
                 return True
+
             await asyncio.sleep(5)
-            count +=1
-            continue
 
     async def claim_points(self, campaign_id: str):
         info = await self.get_campaign_info(campaign_id=campaign_id)
