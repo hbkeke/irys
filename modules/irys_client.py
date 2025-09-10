@@ -129,7 +129,7 @@ class Irys(Base):
 
     async def complete_galxe_quests(self,):
         completed_games = self.wallet.completed_games
-        campaign_ids = ["GCFtLtfrJH", "GCLjLtf7zj", "GCY3gt6MQE"]
+        campaign_ids = ["GCFtLtfrJH", "GCLjLtf7zj"]
         galxe_client = GalxeClient(wallet=self.wallet, client=self.client)
         random.shuffle(campaign_ids)
         for campaign_id in campaign_ids:
