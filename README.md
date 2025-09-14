@@ -98,7 +98,7 @@ shuffle_wallets: true
 exact_wallets_to_run: []
 
 # Show wallet address in logs
-show_wallet_address_log: false
+show_wallet_address_logs: false
 
 #Check for github updates
 check_git_updates: true
