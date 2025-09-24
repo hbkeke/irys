@@ -18,4 +18,6 @@ RPC_MAP = {
     'op_bnb': 'https://opbnb-mainnet-rpc.bnbchain.org',
     'pharos': 'https://testnet.dplabs-internal.com',
     'gravity': 'https://rpc.gravity.xyz',
+    'irys': 'https://testnet-rpc.irys.xyz/v1/execution-rpc',
+    'linea': 'https://linea.drpc.org',
 }

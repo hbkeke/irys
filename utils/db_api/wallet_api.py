@@ -45,6 +45,14 @@ def update_twitter_token(address: str, updated_token: str | None) -> bool:
     db.commit()
     return True
 
+def update_next_action_time(address:str, next_action_time) -> bool:
+    wallet = db.one(Wallet, Wallet.address == address)
+    if not wallet:
+        return False
+    wallet.next_action_time = next_action_time
+    db.commit()
+    return True
+
 def update_next_game_time(address:str, next_game_action_time) -> bool:
     wallet = db.one(Wallet, Wallet.address == address)
     if not wallet:
@@ -111,11 +119,11 @@ def mark_proxy_as_bad(id: int) -> bool:
     db.commit()
     return True
 
-def mark_twitter_as_bad(id: int) -> bool:
+def mark_twitter_status(id: int, status: str) -> bool:
     wallet = db.one(Wallet, Wallet.id == id)
     if not wallet:
         return False
-    wallet.twitter_status = "BAD"
+    wallet.twitter_status = status
     db.commit()
     return True
 
@@ -124,6 +132,14 @@ def get_wallets_with_bad_proxy() -> list:
 
 def get_wallets_with_bad_twitter() -> list:
     return db.all(Wallet, Wallet.twitter_status == "BAD")
+
+def last_faucet_claim(address:str, last_faucet_claim) -> bool:
+    wallet = db.one(Wallet, Wallet.address == address)
+    if not wallet:
+        return False
+    wallet.last_faucet_claim = last_faucet_claim
+    db.commit()
+    return True
 
 db = DB(f'sqlite:///{WALLETS_DB}', echo=False, pool_recycle=3600, connect_args={'check_same_thread': False})
 db.create_tables(Base)
