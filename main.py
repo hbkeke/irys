@@ -28,7 +28,6 @@ PROJECT_ACTIONS = [
 
 UTILS_ACTIONS = [
     "1. Reset files Folder",
-    "2. Export data from database to CSV",
     "Back",
 ]
 
@@ -50,7 +49,13 @@ async def choose_action():
         raise SystemExit(0)
 
     if category == "DB Actions":
-        actions = ["Import wallets to Database", "Sync wallets with tokens and proxies", "Export wallets to TXT", "Back"]
+        actions = [
+            "Import wallets to Database",
+            "Sync wallets with tokens and proxies",
+            "Export wallets to TXT",
+            "Export data from database to CSV",
+            "Back",
+        ]
 
     if category == PROJECT_NAME:
         actions = PROJECT_ACTIONS
@@ -78,6 +83,17 @@ async def choose_action():
     elif action == "Export wallets to TXT":
         console.print(f"[bold blue]Starting Import Wallets to DB[/bold blue]")
         await Export.wallets_to_txt()
+    elif action == "Export data from database to CSV":
+        answer = input("Export excrypted prive keys to CSV Y/N: ")
+        if answer.lower() == "y":
+            result = export_to_csv(export_private_keys=True)
+        else:
+            result = export_to_csv(export_private_keys=False)
+
+        if result[0]:
+            console.print("[bold green]Successfully exported to:[/bold green]", result[1])
+        elif not result[0]:
+            console.print(f"[bold red]Export Failed [/bold red]")
 
     elif action == "1. Run All Activities":
         await activity(action=1)
@@ -100,18 +116,6 @@ async def choose_action():
         if answer.lower() == "y":
             reset_folder()
             console.print("Files folder success reset")
-
-    elif action == "2. Export data from database to CSV":
-        answer = input("Export excrypted prive keys to CSV Y/N: ")
-        if answer.lower() == "y":
-            result = export_to_csv(export_private_keys=True)
-        else:
-            result = export_to_csv(export_private_keys=False)
-
-        if result[0]:
-            console.print("[bold green]Successfully exported to:[/bold green]", result[1])
-        elif not result[0]:
-            console.print(f"[bold red]Export Failed [/bold red]")
 
     elif action == "Exit":
         console.print(f"[bold red]Exiting {PROJECT_NAME}...[/bold red]")
