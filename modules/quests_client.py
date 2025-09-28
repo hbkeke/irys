@@ -189,6 +189,9 @@ class Quests(Irys):
     async def complete_twitter_galxe_quests(self, galxe_client: GalxeClient):
         twitter_client = TwitterClient(user=self.wallet)
         campaign_ids = ["GC17CtmBrm"]
+
+        await galxe_client.open_mystery_box()
+
         random.shuffle(campaign_ids)
         for campaign_id in campaign_ids:
             info = await galxe_client.get_quest_cred_list(campaign_id=campaign_id)

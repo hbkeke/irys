@@ -1,4 +1,6 @@
 import asyncio
+import hashlib
+import json
 import random
 import time
 import uuid
@@ -9,6 +11,7 @@ from data.settings import Settings
 from libs.base import Base
 from libs.eth_async.client import Client
 from libs.eth_async.data.models import Network, Networks, TokenAmount
+from modules.wasm.wasm_client import get_encrypted
 from utils.browser import Browser
 from utils.captcha.captcha_handler import CaptchaHandler
 from utils.db_api.models import Wallet
@@ -359,6 +362,44 @@ class GalxeClient:
             "query": "mutation SyncCredentialValue($input: SyncCredentialValueInput!) {\n  syncCredentialValue(input: $input) {\n    value {\n      address\n      spaceUsers {\n        follow\n        points\n        participations\n        __typename\n      }\n      campaignReferral {\n        count\n        __typename\n      }\n      galxePassport {\n        eligible\n        lastSelfieTimestamp\n        __typename\n      }\n      spacePoint {\n        points\n        __typename\n      }\n      spaceParticipation {\n        participations\n        __typename\n      }\n      gitcoinPassport {\n        score\n        lastScoreTimestamp\n        __typename\n      }\n      walletBalance {\n        balance\n        __typename\n      }\n      multiDimension {\n        value\n        __typename\n      }\n      allow\n      survey {\n        answers\n        __typename\n      }\n      quiz {\n        allow\n        correct\n        __typename\n      }\n      prediction {\n        isCorrect\n        __typename\n      }\n      spaceFollower {\n        follow\n        __typename\n      }\n      __typename\n    }\n    message\n    __typename\n  }\n}",
         }
         return await self.request(json_data=json_data)
+
+    async def open_mystery_box(self, box_id: str = "1001", count: int = 1):
+        box_name = "OpenMysteryBox"
+
+        if not self.bearer_token:
+            await self.auth()
+
+        def sha256_hex(value: str) -> str:
+            return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+        gen_time = str(int(time.time()))
+
+        encrypted_data = json.loads(await get_encrypted(box_name, gen_time))
+
+        captcha = {}
+
+        captcha.update({"captchaOutput": encrypted_data["geetest_encrypted"]})
+        captcha.update({"encryptedData": encrypted_data["encrypted_data"]})
+
+        captcha.update({"lotNumber": sha256_hex(box_name)})
+
+        captcha.update({"genTime": gen_time})
+        captcha.update({"passToken": sha256_hex(gen_time)})
+
+        json_data = {
+            "operationName": "OpenMysteryBox",
+            "variables": {
+                "input": {
+                    "id": str(box_id),
+                    "count": count,
+                    "captcha": captcha,
+                }
+            },
+            "query": "mutation OpenMysteryBox($input: OpenMysteryBoxInput!) {\n  openMysteryBox(input: $input) {\n    description\n    rewards {\n      rewardCount\n      rewardIndex\n      rewardId\n      tokenDetail {\n        ...TokenDetailFrag\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment TokenDetailFrag on TokenDetail {\n  id\n  chain\n  tokenDecimal\n  tokenLogo\n  tokenSymbol\n  tokenAddress\n  __typename\n}",
+        }
+
+        res = await self.request(json_data=json_data)
+        return res
 
     async def add_type(self, cred_id, campaign_id):
         captcha = await self.get_captcha("AddTypedCredentialItems")
