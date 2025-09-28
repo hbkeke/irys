@@ -198,7 +198,7 @@ class Transactions:
             tx_params['gasPrice'] = (await self.gas_price()).Wei
 
         if 'maxFeePerGas' in tx_params and 'maxPriorityFeePerGas' not in tx_params:
-            tx_params['maxPriorityFeePerGas'] = (await self.max_priority_fee()).Wei
+            tx_params['maxPriorityFeePerGas'] = int((await self.max_priority_fee()).Wei * 1.5)
             tx_params['maxFeePerGas'] = tx_params['maxFeePerGas'] + tx_params['maxPriorityFeePerGas']
             #tx_params['maxFeePerGas']=await self.client.w3.eth.max_priority_fee + Web3.to_wei(0.1, "gwei"),
             #tx_params['maxPriorityFeePerGas']=await self.client.w3.eth.max_priority_fee,

@@ -1,4 +1,5 @@
 from typing import Optional
+import hashlib
 import time
 import random
 from eth_hash.auto import keccak  # eth-hash
@@ -23,7 +24,32 @@ def generate_ga_cookie_value(
 def _keccak256_hex(data: bytes) -> str:
     return keccak(data).hex()
 
-def make_x_unique_link_id(galxe_id: Optional[str]) -> str:
+def make_x_unique_link_id(galxe_id: Optional[str], suffix: str = "") -> str:
     base = "null" if galxe_id is None else str(galxe_id)
-    raw = (base + ("")).encode("utf-8")
+    raw = (base + (suffix)).encode("utf-8")
     return _keccak256_hex(raw)
+
+# def make_x_unique_link_id(galxe_id: Optional[str], wallet_method: Optional[str] = None) -> str:
+#     """
+#     Генерирует x-unique-link-id как в JS.
+#     - galxe_id: Из localStorage['galxe-id'], если None — пустая строка.
+#     - wallet_method: Тип кошелька (из window._gwallet.method), определяет suffix.
+#       Примеры: 'Backpack' -> '_solana_bp', 'Trust' -> '_evm_trustwallet', None -> ''.
+#     """
+#     base = "" if galxe_id is None else str(galxe_id)
+#     
+#     # Определяем suffix на основе wallet_method (как в JS)
+#     suffix_map = {
+#         'Backpack': '_solana_bp',
+#         'Trust': '_evm_trustwallet',
+#         'Jambo': '_jambo_wallet',
+#         'PhantomSui': '_sui_phantom',
+#         'OkxSui': '_sui_okx',
+#         'PhantomEVM': '_evm_phantom',
+#         'Okx': '_evm_okx',
+#     }
+#     # suffix = suffix_map.get(wallet_method, '')  # Если неизвестный или None — ''
+#     suffix = ""
+#     
+#     raw_str = base + suffix
+#     return hashlib.md5(raw_str.encode('utf-8')).hexdigest()

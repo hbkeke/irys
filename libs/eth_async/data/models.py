@@ -608,7 +608,7 @@ class Networks:
     )
 
     BSC = Network(
-        name='BSC',
+        name='bsc',
         rpc=RPC_MAP['bsc'],
         chain_id=56,
         tx_type=2,
@@ -634,7 +634,7 @@ class Networks:
         rpc=RPC_MAP['polygon'],
         chain_id=137,
         tx_type=2,
-        coin_symbol='MATIC',
+        coin_symbol='POL',
         decimals=18,
         explorer='https://polygonscan.com/',
         api=API(

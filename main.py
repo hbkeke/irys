@@ -37,6 +37,7 @@ async def choose_action():
             choices=[
                 "DB Actions",
                 PROJECT_NAME,
+                "TEST",
                 "Utils",
                 "Exit"
             ],
@@ -61,6 +62,8 @@ async def choose_action():
 
     if category == 'Utils':
         actions = UTILS_ACTIONS
+    if category == "TEST":
+        actions = ["TEST"]
 
     act_question = [
         inquirer.List(
@@ -82,6 +85,9 @@ async def choose_action():
     elif action == "Export wallets to TXT":
         console.print(f"[bold blue]Starting Import Wallets to DB[/bold blue]")
         await Export.wallets_to_txt()
+
+    elif action == "TEST":
+        await activity(action=6)
 
     elif action == "1. Run All Activities":
         await activity(action=1)

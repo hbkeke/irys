@@ -44,6 +44,11 @@ class Controller:
             await func()
         return
 
+    async def test_subs(self):
+        galxe_client = GalxeClient(wallet=self.wallet, client=self.client)
+        # await self.quest_client.subscription(galxe_client=galxe_client)
+        await self.quest_client.claim_rewards(galxe_client=galxe_client)
+
     async def complete_galxe_quests(self):
         galxe_client = GalxeClient(wallet=self.wallet, client=self.client)
         functions = [

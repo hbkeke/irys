@@ -8,13 +8,59 @@ from utils.db_api.wallet_api import update_points, update_rank
 from utils.galxe.galxe_client import GalxeClient
 from utils.twitter.twitter_client import TwitterClient
 from libs.eth_async.client import Client
-from libs.eth_async.data.models import Networks , Network
+from libs.eth_async.data.models import Networks , Network, TokenAmount
 from .irys_client import Irys
 
 class Quests(Irys):
     def __init__(self, client: Client, wallet: Wallet):
         super().__init__(client, wallet)
         self.proxy_errors = 0
+
+    async def get_and_claim_galxe_rewards(self, galxe_client: GalxeClient):
+        subscribe = await galxe_client.handle_subscribe()
+        if not subscribe:
+            return False
+        info = await galxe_client.session()
+        gold = info['data']['addressInfo']['userLevel']['gold']
+        value = info['data']['addressInfo']['userLevel']['level']['value']
+        box = await galxe_client.check_available_legend_box()
+        if not box:
+            logger.warning(f"{self.wallet} don't avaibale for legendary box yet. Wait subscription update")
+            return False
+        if int(gold) < 800 or int(value) < 3:
+            logger.warning(f"{self.wallet} don't avaibale for legendary box yet. Have gold: {gold}. Have Lvl: {value}")
+            return False
+        logger.success(f"{self.wallet} avaibale for Legendary Box!")
+        open_box = await galxe_client.open_box()
+        amount_win = TokenAmount(amount=int(open_box['rewardCount']), decimals=int(open_box['tokenDetail']['tokenDecimal']),wei=True)
+        logger.success(f"{self.wallet} success win {amount_win.Ether} {open_box['tokenDetail']['tokenSymbol']} coins")
+        await asyncio.sleep(5)
+        return await self.claim_rewards(galxe_client=galxe_client)
+
+    async def claim_rewards(self, galxe_client: GalxeClient):
+        data = await galxe_client.check_rewards()
+        for reward in data['data']['listUserTokens']['list']:
+            if reward['tokenDetail']['tokenSymbol'] != 'GG':
+                amount = TokenAmount(amount=int(reward['tokenAmount']), decimals=int(reward['tokenDetail']['tokenDecimal']), wei=True)
+                logger.info(f"{self.wallet} success found reward {amount.Ether} {reward['tokenDetail']['tokenSymbol']}")
+                token_id = int(reward['tokenDetail']['id'])
+                fee_for_claim = await galxe_client.check_fee_withdraw_reward(token_id=token_id, token_amount=amount.Wei)
+                fee_for_claim = int(fee_for_claim['data']['redeemTokenEstimation'][0]['paymentTokenAmount'])
+                info = await galxe_client.session()
+                gold = info['data']['addressInfo']['userLevel']['gold']
+                if fee_for_claim > int(gold):
+                    logger.warning(f"{self.wallet} don't have enough Gold for claim rewards. Gold: {gold}. Fee: {fee_for_claim}")
+                    return False
+                if fee_for_claim > 300:
+                    logger.warning(f"{self.wallet} fee for claim > 300: {fee_for_claim}. Please contact with dev")
+                    return False
+                redeem_token = await galxe_client.redeem_tokens_rewards(token_id=token_id, token_amount=amount.Wei)
+                if redeem_token['data']['redeemToken']['success']:
+                    logger.success(f"{self.wallet} success claim Rewards")
+                    return True
+                else:
+                    logger.warning(f"{self.wallet} can't claim rewards. Data: {redeem_token}")
+                    return False
 
     async def update_points(self, galxe_client):
         points, rank = await galxe_client.update_points_and_rank(campaign_id=58934)
