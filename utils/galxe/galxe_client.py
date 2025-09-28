@@ -1,6 +1,4 @@
 import asyncio
-import hashlib
-import json
 import random
 import time
 import uuid
@@ -11,15 +9,13 @@ from data.settings import Settings
 from libs.base import Base
 from libs.eth_async.client import Client
 from libs.eth_async.data.models import Network, Networks, TokenAmount
-from modules.wasm.wasm_client import get_encrypted
 from utils.browser import Browser
-from utils.captcha.captcha_handler import CaptchaHandler
 from utils.db_api.models import Wallet
 from utils.retry import async_retry
 
 from .galxe_auth import AuthClient
 from .galxe_onchain import GalxeOnchain
-from .galxe_utils import generate_ga_cookie_value, make_x_unique_link_id
+from .galxe_utils import generate_ga_cookie_value, get_captcha, make_x_unique_link_id
 
 
 class GalxeClient:
@@ -38,25 +34,27 @@ class GalxeClient:
         self.client_id = ""
         self.headers = {}
 
-    def update_headers(self, suffix:str =  ""):
-        return self.headers.update({
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'content-type': 'application/json',
-            'Sec-GPC': '1',
-            'platform': 'web',
-            "request-id": str(uuid.uuid4()) ,
-            'Origin': 'https://app.galxe.com',
-            "Connection": "keep-alive",
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            'Sec-Fetch-Site': 'cross-site',
-            "Priority": "u=4",
-            'x-unique-link-id': f'{make_x_unique_link_id(galxe_id=self.galxe_id, suffix=suffix)}',
-            'authorization': self.bearer_token,
-            'device-id': f'ga-user-{self.client_id}',
-            'x-unique-client-id': f'ga-user-{self.client_id}',
-        })
+    def update_headers(self, suffix: str = ""):
+        return self.headers.update(
+            {
+                "Accept": "*/*",
+                "Accept-Language": "en-US,en;q=0.5",
+                "content-type": "application/json",
+                "Sec-GPC": "1",
+                "platform": "web",
+                "request-id": str(uuid.uuid4()),
+                "Origin": "https://app.galxe.com",
+                "Connection": "keep-alive",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Priority": "u=4",
+                "x-unique-link-id": f"{make_x_unique_link_id(galxe_id=self.galxe_id, suffix=suffix)}",
+                "authorization": self.bearer_token,
+                "device-id": f"ga-user-{self.client_id}",
+                "x-unique-client-id": f"ga-user-{self.client_id}",
+            }
+        )
 
     @async_retry()
     async def request(self, json_data, use_save: bool = False, suffix: str = ""):
@@ -64,7 +62,6 @@ class GalxeClient:
         if use_save:
             response = await self.browser.post(url=self.SAVE_LINK, json=json_data, headers=self.headers)
         else:
-            logger.debug(self.headers)
             response = await self.browser.post(url=self.BASE_LINK, json=json_data, headers=self.headers)
         data = response.json()
         logger.debug(data)
@@ -72,95 +69,32 @@ class GalxeClient:
 
     async def choose_client_for_subscription(self):
         network_values = [Networks.Base, Networks.Polygon, Networks.Arbitrum, Networks.BSC]
-        exchange_rate = await self.get_exchange_rate()
-        eth_rate = exchange_rate['data']['GetExchangeRate'][0]['rate']
-        pol_rate = exchange_rate['data']['GetExchangeRate'][6]['rate']
-        bnb_rate = exchange_rate['data']['GetExchangeRate'][5]['rate']
+        minimum_deposit_data = await self._get_minimum_deposit()
+        minimum_deposit_data = minimum_deposit_data["data"]["instantPaymentTaskMinimumDepositAmount"]["tokens"]
         for network in network_values:
             try:
                 client = Client(private_key=self.client.account._private_key.hex(), network=network, proxy=self.client.proxy)
                 native_balance = await client.wallet.balance()
-                if network.name == 'polygon':
-                    rate = pol_rate
-                    subscription_usd = 1.99
-                elif network.name == 'bsc':
-                    rate = bnb_rate
-                    subscription_usd = 1.99
+                if network.name == "polygon":
+                    pol_rate = TokenAmount(amount=minimum_deposit_data[13]["amount"], wei=True)
+                    rate = round(float(pol_rate.Ether), 5)
+                elif network.name == "bsc":
+                    bnb_rate = TokenAmount(amount=minimum_deposit_data[10]["amount"], wei=True)
+                    rate = round(float(bnb_rate.Ether), 5)
                 else:
-                    rate = eth_rate
-                    subscription_usd = 2.01
-                calculate_deposit = TokenAmount(amount=self.calculate_deposit(exchange_rate_hex=rate, subscription_usd=subscription_usd))
+                    eth_rate = TokenAmount(amount=minimum_deposit_data[1]["amount"], wei=True)
+                    rate = round(float(eth_rate.Ether), 4)
+                deposit = TokenAmount(amount=rate)
                 logger.debug(f"{self.wallet} native balance in {network.name}: {native_balance.Ether}")
-                logger.debug(f"{self.wallet} calculated deposit {calculate_deposit.Ether}")
-                if native_balance.Ether < calculate_deposit.Ether:
+                logger.debug(f"{self.wallet} calculated deposit {deposit.Ether}")
+                if native_balance.Ether < deposit.Ether:
                     continue
                 else:
-                    return client, '0x0000000000000000000000000000000000000000', calculate_deposit
+                    return client, "0x0000000000000000000000000000000000000000", deposit
             except Exception as e:
                 logger.warning(f"{self.wallet} can't check network {network.name} error: {e}")
                 continue
         return None, None, None
-
-    def calculate_deposit(self, exchange_rate_hex, subscription_usd=2.01, decimals=18):
-        rate_int = int(exchange_rate_hex, 0) 
-        deposit = subscription_usd * (10 ** decimals) / rate_int
-        return deposit
-
-    async def get_exchange_rate(self):
-        json_data = {
-            'operationName': 'GetExchangeRate',
-            'variables': {
-                'tokens': [
-                    {
-                        'chainId': 1,
-                        'addr': '0x0000000000000000000000000000000000000000',
-                    },
-                    {
-                        'chainId': 1,
-                        'addr': '0x4c9EDD5852cd905f086C759E8383e09bff1E68B3',
-                    },
-                    {
-                        'chainId': 1,
-                        'addr': '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-                    },
-                    {
-                        'chainId': 1,
-                        'addr': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-                    },
-                    {
-                        'chainId': 1,
-                        'addr': '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-                    },
-                    {
-                        'chainId': 56,
-                        'addr': '0x0000000000000000000000000000000000000000',
-                    },
-                    {
-                        'chainId': 137,
-                        'addr': '0x0000000000000000000000000000000000000000',
-                    },
-                    {
-                        'chainId': 1625,
-                        'addr': '0x0000000000000000000000000000000000000000',
-                    },
-                ],
-            },
-            'query': 'query GetExchangeRate($tokens: [TokenInput!]!) {\n  GetExchangeRate(tokens: $tokens) {\n    token {\n      chainId\n      addr\n      logo\n      symbol\n      decimals\n      __typename\n    }\n    rate\n    __typename\n  }\n}',
-        }
-        return await self.request(json_data=json_data, use_save=True)
-
-    async def _get_price(self, coin_id):
-        if coin_id.upper() == 'ETH':
-            coin_id = 'ethereum'
-        elif coin_id.upper() == 'BNB':
-            coin_id = 'binancecoin'
-        elif coin_id.upper() == 'POL':
-            coin_id = 'polygon-ecosystem-token'
-        url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=usd"
-        request = await self.browser.get(url=url)
-        data = request.json()
-        price =  float(data[coin_id]['usd'])
-        return price
 
     async def choose_available_client(self):
         network_values = [value for key, value in Networks.__dict__.items() if isinstance(value, Network)]
@@ -267,15 +201,13 @@ class GalxeClient:
         info = await self.get_campaign_info(campaign_id=campaign_id)
         info = info["data"]["campaign"]
         chain = info["chain"]
+        number_id = info["numberID"]
         params = self._get_claim_params(info)
         if not params:
             return False
-        captcha = await self.get_captcha('PrepareParticipate')
+        captcha = await get_captcha("PrepareParticipate", use_encrypted_data=True)
         if params["pointMintAmount"] > 0 and params["mintCount"] > 0:
             params["pointMintAmount"] = 0
-        logger.debug(info)
-        logger.debug(captcha)
-        captcha = await self.get_captcha("PrepareParticipate")
         prepare = await self.prepare_participate(
             campaign_id=campaign_id,
             chain=chain,
@@ -285,43 +217,107 @@ class GalxeClient:
         )
         prepare_data = prepare["data"]["prepareParticipate"]["loyaltyPointsTxResp"]
         loyalty_point_address = prepare_data["loyaltyPointContract"]
+        loyalty_point_distr = prepare_data["loyaltyPointDistributionStation"]
         loyalty_point_address = self.client.w3.to_checksum_address(loyalty_point_address)
         verify_ids = prepare_data["VerifyIDs"]
         signature = prepare_data["signature"]
         claim_fee = prepare_data["claimFeeAmount"]
-        balance = await self.client.wallet.balance()
-        if balance.Wei <= int(claim_fee):
-            bridge = await self.handle_bridge()
-            if not bridge:
-                return False
         amounts = prepare_data["Points"]
-        amounts = [TokenAmount(amount).Wei for amount in amounts]
-        claim = await self.galxe_onchain.handle_claim_onchain_points(
-            loyalty_point_address=loyalty_point_address, verify_ids=verify_ids, amounts=amounts, claim_fee=claim_fee, signature=signature
-        )
-        return claim
-
-    async def get_captcha(self, action: str):
-        try:
-            GALXE_CAPTCHA_ID = "244bcb8b9846215df5af4c624a750db4"
-            captcha_handler = CaptchaHandler(wallet=self.wallet)
-            solution = await captcha_handler.recaptcha_handle(
-                websiteURL="https://app.galxe.com/quest", captcha_id=GALXE_CAPTCHA_ID, challenge=action
+        pre_check_claim = await self.pre_check_claim(campaign_id=campaign_id, mint_count=sum(amounts))
+        if pre_check_claim["data"]["campaign"]["ssPaymentPreCheckClaimPoints"]["checkRes"] == "Sufficient":
+            register = await self.register_payment_task(
+                campaign_id=number_id,
+                verify_ids=verify_ids,
+                distribut_address=loyalty_point_distr,
+                loyalty_point_address=loyalty_point_address,
+                points=sum(amounts),
+                amounts=amounts,
+                signature=signature,
             )
-            return {
-                "lotNumber": solution["lot_number"],
-                "captchaOutput": solution["captcha_output"],
-                "passToken": solution["pass_token"],
-                "genTime": solution["gen_time"],
-            }
-        except Exception as e:
-            raise Exception(f"Failed to solve captcha: {str(e)}")
+            if register["data"]["registerSSPaymentTask"]["success"]:
+                payment = await self.get_payment_task_info(task_id=register["data"]["registerSSPaymentTask"]["taskId"])
+                if payment["data"]["paymentTaskInfo"]["status"] == "Success":
+                    logger.success(f"{self.wallet} success free claim {sum(amounts)} points in Galxe {verify_ids} campaign.")
+                    return True
+                else:
+                    logger.warning(f"{self.wallet} can't free claim {sum(amounts)} points in Galxe {verify_ids} campaign. Data: {payment} ")
+                    return False
+            else:
+                logger.warning(
+                    f"{self.wallet} can't register free claim {sum(amounts)} points in Galxe {verify_ids} campaign. Data: {register} "
+                )
+                return False
+        else:
+            balance = await self.client.wallet.balance()
+            amounts = [TokenAmount(amount).Wei for amount in amounts]
+            if balance.Wei <= int(claim_fee):
+                bridge = await self.handle_bridge()
+                if not bridge:
+                    return False
+            return await self.galxe_onchain.handle_claim_onchain_points(
+                loyalty_point_address=loyalty_point_address,
+                verify_ids=verify_ids,
+                amounts=amounts,
+                claim_fee=claim_fee,
+                signature=signature,
+            )
+
+    async def get_payment_task_info(self, task_id):
+        json_data = {
+            "operationName": "paymentTaskInfo",
+            "variables": {
+                "task_id": task_id,
+            },
+            "query": "query paymentTaskInfo($task_id: Int64!) {\n  paymentTaskInfo(taskID: $task_id) {\n    status\n    __typename\n  }\n}",
+        }
+        return await self.request(json_data=json_data)
+
+    async def register_payment_task(self, campaign_id, verify_ids, distribut_address, loyalty_point_address, points, amounts, signature):
+        json_data = {
+            "operationName": "registerSSPaymentTask",
+            "variables": {
+                "input": {
+                    "taskDetail": {
+                        "questTask": {
+                            "campaignId": campaign_id,
+                            "chain": "GRAVITY_ALPHA",
+                            "claimType": "Points",
+                            "powahs": verify_ids,
+                            "verifyIds": verify_ids,
+                            "pointsTask": {
+                                "distributionAddr": distribut_address,
+                                "loyaltyPointsAddr": loyalty_point_address,
+                                "points": points,
+                                "packageId": distribut_address,
+                                "spaceObjectId": loyalty_point_address,
+                                "signature": signature,
+                                "amounts": amounts,
+                            },
+                        },
+                    },
+                },
+            },
+            "query": "mutation registerSSPaymentTask($input: RegisterSSPaymentTaskInput!) {\n  registerSSPaymentTask(input: $input) {\n    taskId\n    success\n    failureReason\n    __typename\n  }\n}",
+        }
+        return await self.request(json_data=json_data)
+
+    async def pre_check_claim(self, campaign_id: str, mint_count: int):
+        json_data = {
+            "operationName": "ssPreCheckCampaign",
+            "variables": {
+                "id": campaign_id,
+                "mintCount": mint_count,
+                "chain": "GRAVITY_ALPHA",
+            },
+            "query": "query ssPreCheckCampaign($id: ID!, $mintCount: Int!, $chain: Chain) {\n  campaign(id: $id) {\n    id\n    ssPaymentPreCheck(mintCount: $mintCount) {\n      checkRes\n      permitTokens {\n        tokenAddr\n        minimumTokenAmount\n        spenderAddr\n        __typename\n      }\n      __typename\n    }\n    ssPaymentPreCheckClaimPoints(chain: $chain) {\n      checkRes\n      permitTokens {\n        tokenAddr\n        minimumTokenAmount\n        spenderAddr\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}",
+        }
+        return await self.request(json_data=json_data)
 
     async def auth(self):
         bearer_token = await self.auth_client.login()
         self.bearer_token = bearer_token
         session = await self.session()
-        self.galxe_id = session['data']['addressInfo']['id']
+        self.galxe_id = session["data"]["addressInfo"]["id"]
         self.client_id = generate_ga_cookie_value()
 
     async def session(self):
@@ -363,47 +359,26 @@ class GalxeClient:
         }
         return await self.request(json_data=json_data)
 
-    async def open_mystery_box(self, box_id: str = "1001", count: int = 1):
-        box_name = "OpenMysteryBox"
-
+    async def open_mystery_box(self, box_id: str = "1003", count: int = 1):
         if not self.bearer_token:
             await self.auth()
-
-        def sha256_hex(value: str) -> str:
-            return hashlib.sha256(value.encode("utf-8")).hexdigest()
-
-        gen_time = str(int(time.time()))
-
-        encrypted_data = json.loads(await get_encrypted(box_name, gen_time))
-
-        captcha = {}
-
-        captcha.update({"captchaOutput": encrypted_data["geetest_encrypted"]})
-        captcha.update({"encryptedData": encrypted_data["encrypted_data"]})
-
-        captcha.update({"lotNumber": sha256_hex(box_name)})
-
-        captcha.update({"genTime": gen_time})
-        captcha.update({"passToken": sha256_hex(gen_time)})
-
+        captcha = await get_captcha(action="OpenMysteryBox", use_encrypted_data=True)
         json_data = {
             "operationName": "OpenMysteryBox",
             "variables": {
                 "input": {
-                    "id": str(box_id),
+                    "id": box_id,
                     "count": count,
                     "captcha": captcha,
-                }
+                },
             },
             "query": "mutation OpenMysteryBox($input: OpenMysteryBoxInput!) {\n  openMysteryBox(input: $input) {\n    description\n    rewards {\n      rewardCount\n      rewardIndex\n      rewardId\n      tokenDetail {\n        ...TokenDetailFrag\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment TokenDetailFrag on TokenDetail {\n  id\n  chain\n  tokenDecimal\n  tokenLogo\n  tokenSymbol\n  tokenAddress\n  __typename\n}",
         }
-
-        res = await self.request(json_data=json_data)
-        return res
+        data = await self.request(json_data=json_data)
+        return data["data"]["openMysteryBox"]["rewards"][0]
 
     async def add_type(self, cred_id, campaign_id):
-        captcha = await self.get_captcha("AddTypedCredentialItems")
-        captcha.update({"encryptedData": ""})
+        captcha = await get_captcha("AddTypedCredentialItems")
         json_data = {
             "operationName": "AddTypedCredentialItems",
             "variables": {
@@ -438,8 +413,7 @@ class GalxeClient:
         }
         await self.request(json_data=json_data)
 
-        captcha = await self.get_captcha("SyncCredentialValue")
-        captcha.update({"encryptedData": ""})
+        captcha = await get_captcha("SyncCredentialValue")
         json_data = {
             "operationName": "SyncCredentialValue",
             "variables": {
@@ -543,130 +517,118 @@ class GalxeClient:
         if not self.bearer_token:
             await self.auth()
         json_data = {
-            'operationName': 'GetBalance',
-            'variables': {
-                'address': f'{self.wallet.address}',
+            "operationName": "GetBalance",
+            "variables": {
+                "address": f"{self.wallet.address}",
             },
-            'query': 'query GetBalance($address: String!) {\n  GetBalance(address: $address) {\n    token\n    balance\n    pendingAmount\n    __typename\n  }\n}',
+            "query": "query GetBalance($address: String!) {\n  GetBalance(address: $address) {\n    token\n    balance\n    pendingAmount\n    __typename\n  }\n}",
         }
         data = await self.request(json_data=json_data, use_save=True)
-        if not data['data']['GetBalance']:
+        if not data["data"]["GetBalance"]:
             return 0.0
-        return data['data']['GetBalance']
-
+        return data["data"]["GetBalance"]
 
     async def handle_subscribe(self):
         if not self.bearer_token:
             await self.auth()
-        if await self.get_subscription():
-            return True
+        if not Settings().buy_galxe_subscription or await self.get_subscription():
+            return False
         client, token, amount = await self.choose_client_for_subscription()
         if not client or not token or not amount:
             logger.warning(f"{self.wallet} can't choose client for subscription")
             return False
+        if client.network.name.upper() == "POLYGON":
+            chain = "MATIC"
+        else:
+            chain = client.network.name.upper()
         json_data = {
-            'operationName': 'RegisterInstantPaymentTask',
-            'variables': {
-                'input': {
-                    'taskParams': {
-                        'amount': f'{amount.Wei}',
-                        'token': f'{token}',
-                        'chain': f'{client.network.name.upper()}',
+            "operationName": "RegisterInstantPaymentTask",
+            "variables": {
+                "input": {
+                    "taskParams": {
+                        "amount": f"{amount.Wei}",
+                        "token": f"{token}",
+                        "chain": chain,
                     },
-                    'taskDetail': {
-                        'plusTask': {
-                            'paymentCycle': 'Monthly',
-                            'planType': 'Mini',
+                    "taskDetail": {
+                        "plusTask": {
+                            "paymentCycle": "Monthly",
+                            "planType": "Mini",
                         },
                     },
-                    'depositType': 'CrossChainSwapDeposit',
-                    'permit': {
-                        'deadline': 0,
-                        'v': 0,
-                        'r': '0x0000000000000000000000000000000000000000000000000000000000000000',
-                        's': '0x0000000000000000000000000000000000000000000000000000000000000000',
+                    "depositType": "CrossChainSwapDeposit",
+                    "permit": {
+                        "deadline": 0,
+                        "v": 0,
+                        "r": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                        "s": "0x0000000000000000000000000000000000000000000000000000000000000000",
                     },
                 },
             },
-            'query': 'mutation RegisterInstantPaymentTask($input: RegisterInstantPaymentTaskInput!) {\n  registerInstantPaymentTask(input: $input) {\n    taskId\n    taskFee\n    signature\n    ssEncodedData\n    ssVaultDepositSignature\n    depositToken\n    depositAmount\n    depositResponse {\n      messageFee\n      __typename\n    }\n    swapDepositResponse {\n      depositPool\n      messageFee\n      sourceSwap {\n        minOut\n        feeTier\n        __typename\n      }\n      sourceSwapPath\n      __typename\n    }\n    crossChainSwapDepositResponse {\n      targetEndpointId\n      targetToken\n      sourceSwap {\n        minOut\n        feeTier\n        __typename\n      }\n      targetSwap {\n        minOut\n        feeTier\n        __typename\n      }\n      nativeDrop\n      messageFee\n      sourceSwapPath\n      targetSwapPath\n      __typename\n    }\n    contractAddress\n    tokenTransfers {\n      amount\n      treasurer\n      __typename\n    }\n    __typename\n  }\n}',
+            "query": "mutation RegisterInstantPaymentTask($input: RegisterInstantPaymentTaskInput!) {\n  registerInstantPaymentTask(input: $input) {\n    taskId\n    taskFee\n    signature\n    ssEncodedData\n    ssVaultDepositSignature\n    depositToken\n    depositAmount\n    depositResponse {\n      messageFee\n      __typename\n    }\n    swapDepositResponse {\n      depositPool\n      messageFee\n      sourceSwap {\n        minOut\n        feeTier\n        __typename\n      }\n      sourceSwapPath\n      __typename\n    }\n    crossChainSwapDepositResponse {\n      targetEndpointId\n      targetToken\n      sourceSwap {\n        minOut\n        feeTier\n        __typename\n      }\n      targetSwap {\n        minOut\n        feeTier\n        __typename\n      }\n      nativeDrop\n      messageFee\n      sourceSwapPath\n      targetSwapPath\n      __typename\n    }\n    contractAddress\n    tokenTransfers {\n      amount\n      treasurer\n      __typename\n    }\n    __typename\n  }\n}",
         }
-        logger.debug(json_data)
         data = await self.request(json_data=json_data)
-        if 'registerInstantPaymentTask' not in data['data']:
+        if "registerInstantPaymentTask" not in data["data"]:
             logger.warning(f"{self.wallet} can't get transactions details for subscribe data: {data}")
             return False
-        return await self.galxe_onchain.subscription(client=Base(client=client, wallet=self.wallet), data=data)
+        transaction = await self.galxe_onchain.subscription(client=Base(client=client, wallet=self.wallet), data=data)
+        if transaction:
+            logger.success(f"{self.wallet} success buy Mini Subscription on Galxe for 1 month")
+            return True
+        logger.warning(f"{self.wallet} can't buy Mini Subscription on Galxe for 1 month")
+        return False
 
     async def get_subscription(self):
         if not self.bearer_token:
             await self.auth()
         json_data = {
-            'operationName': 'GetUserPlusSubscription',
-            'variables': {},
-            'query': 'query GetUserPlusSubscription {\n  userPlusSubscription {\n    active\n    currentPlanType\n    currentPaymentCycle\n    expiresAt\n    beginsAt\n    __typename\n  }\n}',
+            "operationName": "GetUserPlusSubscription",
+            "variables": {},
+            "query": "query GetUserPlusSubscription {\n  userPlusSubscription {\n    active\n    currentPlanType\n    currentPaymentCycle\n    expiresAt\n    beginsAt\n    __typename\n  }\n}",
         }
         data = await self.request(json_data=json_data)
-        return data['data']['userPlusSubscription']['active']
+        return data["data"]["userPlusSubscription"]["active"]
 
     async def check_available_legend_box(self):
         if not self.bearer_token:
             await self.auth()
         json_data = {
-            'operationName': 'MysteryBoxes',
-            'variables': {
-                'address': f'EVM:{self.client.account.address}',
+            "operationName": "MysteryBoxes",
+            "variables": {
+                "address": f"EVM:{self.client.account.address}",
             },
-            'query': 'query MysteryBoxes($address: String!) {\n  mysteryBoxes {\n    id\n    name\n    logo\n    available\n    participateFee {\n      id\n      chain\n      tokenAmount\n      tokenDetail {\n        ...TokenDetailFrag\n        __typename\n      }\n      __typename\n    }\n    discountParticipateFee {\n      id\n      chain\n      tokenAmount\n      tokenDetail {\n        ...TokenDetailFrag\n        __typename\n      }\n      __typename\n    }\n    rewardConfig {\n      rewardCount\n      rewardType\n      rewardCap\n      rewardDesc\n      rewardIndex\n      tokenDetail {\n        ...TokenDetailFrag\n        __typename\n      }\n      __typename\n    }\n    credentialGroups(address: $address) {\n      id\n      name\n      credentials {\n        id\n        name\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment TokenDetailFrag on TokenDetail {\n  id\n  chain\n  tokenDecimal\n  tokenLogo\n  tokenSymbol\n  tokenAddress\n  __typename\n}',
+            "query": "query MysteryBoxes($address: String!) {\n  mysteryBoxes {\n    id\n    name\n    logo\n    available\n    participateFee {\n      id\n      chain\n      tokenAmount\n      tokenDetail {\n        ...TokenDetailFrag\n        __typename\n      }\n      __typename\n    }\n    discountParticipateFee {\n      id\n      chain\n      tokenAmount\n      tokenDetail {\n        ...TokenDetailFrag\n        __typename\n      }\n      __typename\n    }\n    rewardConfig {\n      rewardCount\n      rewardType\n      rewardCap\n      rewardDesc\n      rewardIndex\n      tokenDetail {\n        ...TokenDetailFrag\n        __typename\n      }\n      __typename\n    }\n    credentialGroups(address: $address) {\n      id\n      name\n      credentials {\n        id\n        name\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment TokenDetailFrag on TokenDetail {\n  id\n  chain\n  tokenDecimal\n  tokenLogo\n  tokenSymbol\n  tokenAddress\n  __typename\n}",
         }
         data = await self.request(json_data=json_data)
-        return data['data']['mysteryBoxes'][-1]['available']
-    
-    async def open_box(self):
-        if not self.bearer_token:
-            await self.auth()
-        captcha = await self.get_captcha('AddTypedCredentialItems')
-        captcha.update({'encryptedData': ''})
-        json_data = {
-            'operationName': 'OpenMysteryBox',
-            'variables': {
-                'input': {
-                    'id': '1003',
-                    'count': 1,
-                    'captcha': captcha,
-                },
-            },
-            'query': 'mutation OpenMysteryBox($input: OpenMysteryBoxInput!) {\n  openMysteryBox(input: $input) {\n    description\n    rewards {\n      rewardCount\n      rewardIndex\n      rewardId\n      tokenDetail {\n        ...TokenDetailFrag\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment TokenDetailFrag on TokenDetail {\n  id\n  chain\n  tokenDecimal\n  tokenLogo\n  tokenSymbol\n  tokenAddress\n  __typename\n}',
-        }
-        data = await self.request(json_data=json_data)
-        return data['data']['openMysteryBox']['rewards'][0]
-    
+        return data["data"]["mysteryBoxes"][-1]["available"]
+
     async def check_rewards(self):
         if not self.bearer_token:
             await self.auth()
         json_data = {
-            'operationName': 'UserTokenList',
-            'variables': {
-                'request': {
-                    'afterId': 0,
-                    'limit': 10,
+            "operationName": "UserTokenList",
+            "variables": {
+                "request": {
+                    "afterId": 0,
+                    "limit": 10,
                 },
             },
-            'query': 'query UserTokenList($request: ListUserTokensRequest!) {\n  listUserTokens(request: $request) {\n    totalCount\n    pageInfo {\n      startCursor\n      endCursor\n      hasNextPage\n      hasPreviousPage\n      __typename\n    }\n    list {\n      id\n      chain\n      tokenAmount\n      tokenDetail {\n        ...TokenDetailFrag\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment TokenDetailFrag on TokenDetail {\n  id\n  chain\n  tokenDecimal\n  tokenLogo\n  tokenSymbol\n  tokenAddress\n  __typename\n}',
+            "query": "query UserTokenList($request: ListUserTokensRequest!) {\n  listUserTokens(request: $request) {\n    totalCount\n    pageInfo {\n      startCursor\n      endCursor\n      hasNextPage\n      hasPreviousPage\n      __typename\n    }\n    list {\n      id\n      chain\n      tokenAmount\n      tokenDetail {\n        ...TokenDetailFrag\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment TokenDetailFrag on TokenDetail {\n  id\n  chain\n  tokenDecimal\n  tokenLogo\n  tokenSymbol\n  tokenAddress\n  __typename\n}",
         }
         return await self.request(json_data=json_data)
-        
+
     async def check_fee_withdraw_reward(self, token_id: int, token_amount):
         if not self.bearer_token:
             await self.auth()
         json_data = {
-            'operationName': 'RedeemTokenEstimation',
-            'variables': {
-                'input': {
-                    'tokenId': token_id,
-                    'tokenAmount': str(token_amount),
+            "operationName": "RedeemTokenEstimation",
+            "variables": {
+                "input": {
+                    "tokenId": token_id,
+                    "tokenAmount": str(token_amount),
                 },
             },
-            'query': 'query RedeemTokenEstimation($input: RedeemTokenEstimationRequest!) {\n  redeemTokenEstimation(request: $input) {\n    gasFeeUSD\n    gasTokens {\n      paymentToken {\n        tokenAmount\n        tokenDetail {\n          ...TokenDetailFrag\n          __typename\n        }\n        __typename\n      }\n      paymentTokenAmount\n      gasTokenDetail {\n        ...TokenDetailFrag\n        __typename\n      }\n      gasTokenAmount\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment TokenDetailFrag on TokenDetail {\n  id\n  chain\n  tokenDecimal\n  tokenLogo\n  tokenSymbol\n  tokenAddress\n  __typename\n}',
+            "query": "query RedeemTokenEstimation($input: RedeemTokenEstimationRequest!) {\n  redeemTokenEstimation(request: $input) {\n    gasFeeUSD\n    gasTokens {\n      paymentToken {\n        tokenAmount\n        tokenDetail {\n          ...TokenDetailFrag\n          __typename\n        }\n        __typename\n      }\n      paymentTokenAmount\n      gasTokenDetail {\n        ...TokenDetailFrag\n        __typename\n      }\n      gasTokenAmount\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment TokenDetailFrag on TokenDetail {\n  id\n  chain\n  tokenDecimal\n  tokenLogo\n  tokenSymbol\n  tokenAddress\n  __typename\n}",
         }
 
         return await self.request(json_data=json_data, suffix="__galxe_web")
@@ -674,15 +636,90 @@ class GalxeClient:
     async def redeem_tokens_rewards(self, token_id: int, token_amount):
         time_for_request = int(time.time())
         json_data = {
-            'operationName': 'redeemToken',
-            'variables': {
-                'input': {
-                    'tokenAmount': token_amount,
-                    'redeemAddress': f'{self.wallet.address}',
-                    'tokenId': token_id,
-                    'timestamp': time_for_request,
+            "operationName": "redeemToken",
+            "variables": {
+                "input": {
+                    "tokenAmount": token_amount,
+                    "redeemAddress": f"{self.wallet.address}",
+                    "tokenId": token_id,
+                    "timestamp": time_for_request,
                 },
             },
-            'query': 'mutation redeemToken($input: RedeemTokenRequest!) {\n  redeemToken(request: $input) {\n    success\n    __typename\n  }\n}',
+            "query": "mutation redeemToken($input: RedeemTokenRequest!) {\n  redeemToken(request: $input) {\n    success\n    __typename\n  }\n}",
         }
         return await self.request(json_data=json_data, suffix=f"__galxe_web_{time_for_request}")
+
+    async def _get_minimum_deposit(self):
+        json_data = {
+            "operationName": "instantPaymentTaskMinimumDepositAmount",
+            "variables": {
+                "input": {
+                    "tokens": [
+                        {
+                            "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                            "chain": "BASE",
+                        },
+                        {
+                            "token": "0x0000000000000000000000000000000000000000",
+                            "chain": "BASE",
+                        },
+                        {
+                            "token": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+                            "chain": "ETHEREUM",
+                        },
+                        {
+                            "token": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+                            "chain": "ETHEREUM",
+                        },
+                        {
+                            "token": "0x0000000000000000000000000000000000000000",
+                            "chain": "ETHEREUM",
+                        },
+                        {
+                            "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                            "chain": "ARBITRUM",
+                        },
+                        {
+                            "token": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                            "chain": "ARBITRUM",
+                        },
+                        {
+                            "token": "0x0000000000000000000000000000000000000000",
+                            "chain": "ARBITRUM",
+                        },
+                        {
+                            "token": "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+                            "chain": "BSC",
+                        },
+                        {
+                            "token": "0x55d398326f99059fF775485246999027B3197955",
+                            "chain": "BSC",
+                        },
+                        {
+                            "token": "0x0000000000000000000000000000000000000000",
+                            "chain": "BSC",
+                        },
+                        {
+                            "token": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+                            "chain": "MATIC",
+                        },
+                        {
+                            "token": "0xc2132d05d31c914a87c6611c10748aeb04b58e8f",
+                            "chain": "MATIC",
+                        },
+                        {
+                            "token": "0x0000000000000000000000000000000000000000",
+                            "chain": "MATIC",
+                        },
+                    ],
+                    "taskDetail": {
+                        "plusTask": {
+                            "planType": "Mini",
+                            "paymentCycle": "Monthly",
+                        },
+                    },
+                },
+            },
+            "query": "query instantPaymentTaskMinimumDepositAmount($input: InstantPaymentTaskMinimumDepositAmountInput!) {\n  instantPaymentTaskMinimumDepositAmount(input: $input) {\n    tokens {\n      token\n      chain\n      amount\n      __typename\n    }\n    __typename\n  }\n}",
+        }
+        return await self.request(json_data=json_data)

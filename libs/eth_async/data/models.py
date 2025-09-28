@@ -458,7 +458,7 @@ class Networks:
         rpc=RPC_MAP["polygon"],
         chain_id=137,
         tx_type=2,
-        coin_symbol='POL',
+        coin_symbol="POL",
         decimals=18,
         explorer="https://polygonscan.com/",
         api=API(key=config.POLYGON_API_KEY, url="https://api.polygonscan.com/api", docs="https://docs.polygonscan.com/"),

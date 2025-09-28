@@ -19,9 +19,9 @@ class GalxeOnchain(Base):
         self.browser = browser
         self.current_dir = os.path.dirname(__file__)
         self.galxe_points_contract = RawContract(
-            title='GalxePoints',
-            address='0x0c11DF9bB57c15926D5195B5F814c1a3aC07969C',
-            abi=read_json(path=os.path.join(self.current_dir, 'galxepoints.json'))
+            title="GalxePoints",
+            address="0x0c11DF9bB57c15926D5195B5F814c1a3aC07969C",
+            abi=read_json(path=os.path.join(self.current_dir, "galxepoints.json")),
         )
 
     async def handle_claim_onchain_points(
@@ -133,50 +133,52 @@ class GalxeOnchain(Base):
             raise Exception(f"Gas Zip Bridge failed: {result.error_message}")
 
     async def subscription(self, client: Base, data: dict):
-        data = data['data']['registerInstantPaymentTask']
+        data = data["data"]["registerInstantPaymentTask"]
         contract = RawContract(
-            title='Galxe Sub',
-            address=data['contractAddress'],
-            abi=read_json(path=os.path.join(self.current_dir, 'galxesubscription.json'))
+            title="Galxe Sub", address=data["contractAddress"], abi=read_json(path=os.path.join(self.current_dir, "galxesubscription.json"))
         )
         contract = await self.client.contracts.get(contract)
         function = "crossChainSwapDeposit"
         tokenTransfers = []
-        for transfer in data['tokenTransfers']:
-            amount = int(transfer['amount'])
-            treasurer = transfer['treasurer']
+        for transfer in data["tokenTransfers"]:
+            amount = int(transfer["amount"])
+            treasurer = transfer["treasurer"]
             tokenTransfers.append([amount, treasurer])
 
         swap_params = TxArgs(
             _user=self.client.account.address,
-            _depositToken='0x0000000000000000000000000000000000000000',
-            _depositAmount=int(data['taskFee']),
-            _taskId=int(data['taskId']),
-            _taskFee=int(data['taskFee']),
-            _targetEndpointId=int(data['crossChainSwapDepositResponse']['targetEndpointId']),
-            _targetToken=data['crossChainSwapDepositResponse']['targetToken'],
+            _depositToken="0x0000000000000000000000000000000000000000",
+            _depositAmount=int(data["taskFee"]),
+            _taskId=int(data["taskId"]),
+            _taskFee=int(data["taskFee"]),
+            _targetEndpointId=int(data["crossChainSwapDepositResponse"]["targetEndpointId"]),
+            _targetToken=data["crossChainSwapDepositResponse"]["targetToken"],
             _sourceSwap=[
-                int(data['crossChainSwapDepositResponse']['sourceSwap']['minOut']),
-                int(data['crossChainSwapDepositResponse']['sourceSwap']['feeTier'])
+                int(data["crossChainSwapDepositResponse"]["sourceSwap"]["minOut"]),
+                int(data["crossChainSwapDepositResponse"]["sourceSwap"]["feeTier"]),
             ],
             _targetSwap=[
-                int(data['crossChainSwapDepositResponse']['targetSwap']['minOut']),
-                int(data['crossChainSwapDepositResponse']['targetSwap']['feeTier'])
+                int(data["crossChainSwapDepositResponse"]["targetSwap"]["minOut"]),
+                int(data["crossChainSwapDepositResponse"]["targetSwap"]["feeTier"]),
             ],
             _permit=[
-                0,0,'0x0000000000000000000000000000000000000000000000000000000000000000', '0x0000000000000000000000000000000000000000000000000000000000000000'
+                0,
+                0,
+                "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "0x0000000000000000000000000000000000000000000000000000000000000000",
             ],
-            _nativeDrop=data['crossChainSwapDepositResponse']['nativeDrop'],
-            _messageFee=int(data['crossChainSwapDepositResponse']['messageFee']),
+            _nativeDrop=data["crossChainSwapDepositResponse"]["nativeDrop"],
+            _messageFee=int(data["crossChainSwapDepositResponse"]["messageFee"]),
             _tokenTransfers=tokenTransfers,
-            _signature=data['signature'],
+            _signature=data["signature"],
         )
 
         transcation_data = contract.encode_abi(function, args=(swap_params.tuple()))
-        tx_params = TxParams(to=contract.address, data=transcation_data, value=int(data['taskFee']))
+        tx_params = TxParams(to=contract.address, data=transcation_data, value=int(data["taskFee"]))
 
-
-        result = await client.execute_transaction(tx_params=tx_params, activity_type=f"Galxe Subscription from {client.client.network.name}")
+        result = await client.execute_transaction(
+            tx_params=tx_params, activity_type=f"Galxe Subscription from {client.client.network.name}"
+        )
 
         if result.success:
             return result.tx_hash

@@ -93,8 +93,6 @@ async def activity(action: int):
     if action == 5 and wallets:
         await execute(wallets, complete_onchain_actions)
 
-    if action == 6 and wallets:
-        await execute(wallets, test_subs)
 
 async def start_main_action(wallet):
     now = datetime.now()
@@ -183,13 +181,3 @@ async def complete_onchain_actions(wallet):
     controller = Controller(client=client, wallet=wallet)
 
     await controller.complete_onchain()
-
-async def test_subs(wallet):
-    
-    await random_sleep_before_start(wallet=wallet)
-    
-    client = Client(private_key=wallet.private_key, proxy=wallet.proxy, network=Networks.Gravity)
-
-    controller = Controller(client=client, wallet=wallet)
-
-    await controller.test_subs()

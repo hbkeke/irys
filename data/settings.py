@@ -42,6 +42,7 @@ class Settings(Singleton):
 
         self.retry = json_data.get("retry", 3)
         self.multiple_mint = json_data.get("multiple_mint", False)
+        self.buy_galxe_subscription = json_data.get("buy_galxe_subscription", True)
 
 
 # Configure the logger based on the settings

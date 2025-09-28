@@ -19,47 +19,56 @@ class Quests(Irys):
         super().__init__(client, wallet)
         self.proxy_errors = 0
 
-    async def get_and_claim_galxe_rewards(self, galxe_client: GalxeClient):
-        subscribe = await galxe_client.handle_subscribe()
+    async def get_and_claim_mystery_box(self, galxe_client: GalxeClient):
+        subscribe = await galxe_client.get_subscription()
         if not subscribe:
             return False
         info = await galxe_client.session()
-        gold = info['data']['addressInfo']['userLevel']['gold']
-        value = info['data']['addressInfo']['userLevel']['level']['value']
+        gold = info["data"]["addressInfo"]["userLevel"]["gold"]
+        value = info["data"]["addressInfo"]["userLevel"]["level"]["value"]
         box = await galxe_client.check_available_legend_box()
-        if not box:
-            logger.warning(f"{self.wallet} don't avaibale for legendary box yet. Wait subscription update")
-            return False
-        if int(gold) < 800 or int(value) < 3:
-            logger.warning(f"{self.wallet} don't avaibale for legendary box yet. Have gold: {gold}. Have Lvl: {value}")
+        if not box or int(gold) < 799 or int(value) < 3:
+            logger.warning(f"{self.wallet} don't avaibale for legendary box yet. Have GG: {gold}. Have Lvl: {value}")
             return False
         logger.success(f"{self.wallet} avaibale for Legendary Box!")
-        open_box = await galxe_client.open_box()
-        amount_win = TokenAmount(amount=int(open_box['rewardCount']), decimals=int(open_box['tokenDetail']['tokenDecimal']),wei=True)
+        open_box = await galxe_client.open_mystery_box()
+        amount_win = TokenAmount(amount=int(open_box["rewardCount"]), decimals=int(open_box["tokenDetail"]["tokenDecimal"]), wei=True)
         logger.success(f"{self.wallet} success win {amount_win.Ether} {open_box['tokenDetail']['tokenSymbol']} coins")
-        await asyncio.sleep(5)
-        return await self.claim_rewards(galxe_client=galxe_client)
+        return True
 
     async def claim_rewards(self, galxe_client: GalxeClient):
         data = await galxe_client.check_rewards()
-        for reward in data['data']['listUserTokens']['list']:
-            if reward['tokenDetail']['tokenSymbol'] != 'GG':
-                amount = TokenAmount(amount=int(reward['tokenAmount']), decimals=int(reward['tokenDetail']['tokenDecimal']), wei=True)
-                logger.info(f"{self.wallet} success found reward {amount.Ether} {reward['tokenDetail']['tokenSymbol']}")
-                token_id = int(reward['tokenDetail']['id'])
-                fee_for_claim = await galxe_client.check_fee_withdraw_reward(token_id=token_id, token_amount=amount.Wei)
-                fee_for_claim = int(fee_for_claim['data']['redeemTokenEstimation'][0]['paymentTokenAmount'])
+        for reward in data["data"]["listUserTokens"]["list"]:
+            if reward["tokenDetail"]["tokenSymbol"] != "GG":
+                amount = TokenAmount(amount=int(reward["tokenAmount"]), decimals=int(reward["tokenDetail"]["tokenDecimal"]), wei=True)
+                token_symbol = reward["tokenDetail"]["tokenSymbol"]
+                if amount.Ether == 0:
+                    continue
+                logger.success(f"{self.wallet} success found reward {amount.Ether} {token_symbol}")
+                token_id = int(reward["tokenDetail"]["id"])
+                token_rewards_fee = await galxe_client.check_fee_withdraw_reward(token_id=token_id, token_amount=amount.Wei)
+                fee_for_claim = None
+                for fee in token_rewards_fee["data"]["redeemTokenEstimation"]["gasTokens"]:
+                    token = fee["paymentToken"]["tokenDetail"]["tokenSymbol"]
+                    token_amount = fee["paymentToken"]["tokenAmount"]
+                    if token == token_symbol and int(amount.Wei) == int(token_amount):
+                        fee_for_claim = fee["paymentTokenAmount"]
+                        fee_for_claim = TokenAmount(amount=fee_for_claim, wei=True)
+
                 info = await galxe_client.session()
-                gold = info['data']['addressInfo']['userLevel']['gold']
-                if fee_for_claim > int(gold):
-                    logger.warning(f"{self.wallet} don't have enough Gold for claim rewards. Gold: {gold}. Fee: {fee_for_claim}")
+                gold = info["data"]["addressInfo"]["userLevel"]["gold"]
+                if not fee_for_claim:
+                    logger.warning(f"{self.wallet} can't get fee for claim rewards")
                     return False
-                if fee_for_claim > 300:
-                    logger.warning(f"{self.wallet} fee for claim > 300: {fee_for_claim}. Please contact with dev")
+                if fee_for_claim.Ether > float(gold):
+                    logger.warning(f"{self.wallet} don't have enough Gold for claim rewards. Gold: {gold}. Fee: {fee_for_claim.Ether}")
+                    return False
+                if fee_for_claim.Ether > float(300):
+                    logger.warning(f"{self.wallet} fee for claim > 300: {fee_for_claim.Ether}. Please contact with dev")
                     return False
                 redeem_token = await galxe_client.redeem_tokens_rewards(token_id=token_id, token_amount=amount.Wei)
-                if redeem_token['data']['redeemToken']['success']:
-                    logger.success(f"{self.wallet} success claim Rewards")
+                if redeem_token["data"]["redeemToken"]["success"]:
+                    logger.success(f"{self.wallet} success claim {amount.Ether} {token_symbol} Rewards")
                     return True
                 else:
                     logger.warning(f"{self.wallet} can't claim rewards. Data: {redeem_token}")
@@ -105,7 +114,7 @@ class Quests(Irys):
                     else:
                         continue
 
-            if await self.check_available_claim():
+            if await self.check_available_claim() or await galxe_client.get_subscription():
                 await galxe_client.claim_points(campaign_id=campaign_id)
 
     async def complete_irysverse_quiz(self, galxe_client: GalxeClient):
@@ -144,7 +153,7 @@ class Quests(Irys):
                             logger.warning(f"{self.wallet} can't sync quest for {tier['name']} on Galxe. Wait update")
                             continue
 
-            if await self.check_available_claim():
+            if await self.check_available_claim() or await galxe_client.get_subscription():
                 await galxe_client.claim_points(campaign_id=campaign_id)
 
     async def complete_daily_irysverse_galxe_quests(self, galxe_client: GalxeClient):
@@ -183,14 +192,12 @@ class Quests(Irys):
                             logger.warning(f"{self.wallet} can't sync quest for {tier['name']} on Galxe. Wait update")
                             continue
 
-            if await self.check_available_claim():
+            if await self.check_available_claim() or await galxe_client.get_subscription():
                 await galxe_client.claim_points(campaign_id=campaign_id)
 
     async def complete_twitter_galxe_quests(self, galxe_client: GalxeClient):
         twitter_client = TwitterClient(user=self.wallet)
         campaign_ids = ["GC17CtmBrm"]
-
-        await galxe_client.open_mystery_box()
 
         random.shuffle(campaign_ids)
         for campaign_id in campaign_ids:
@@ -283,7 +290,7 @@ class Quests(Irys):
                                 logger.success(f"{self.wallet} success sync quest for {tier['plays_required']} on Galxe")
                                 await asyncio.sleep(15)
                                 try:
-                                    if await self.check_available_claim():
+                                    if await self.check_available_claim() or await galxe_client.get_subscription():
                                         await galxe_client.claim_points(campaign_id=campaign_id)
                                 except Exception:
                                     await asyncio.sleep(60)
@@ -294,7 +301,7 @@ class Quests(Irys):
                                 continue
                     else:
                         try:
-                            if await self.check_available_claim():
+                            if await self.check_available_claim() or await galxe_client.get_subscription():
                                 await galxe_client.claim_points(campaign_id=campaign_id)
                         except Exception as e:
                             logger.info(f"{self.wallet} already claimed points for {tier['name']} quest")

@@ -1,11 +1,12 @@
-from typing import Optional
 import hashlib
-import time
+import json
 import random
 import time
 from typing import Optional
 
 from eth_hash.auto import keccak  # eth-hash
+
+from modules.wasm.wasm_client import get_encrypted
 
 GA_MAX_AGE = 60 * 60 * 24 * 365 * 2
 
@@ -31,7 +32,34 @@ def generate_ga_cookie_value(
 def _keccak256_hex(data: bytes) -> str:
     return keccak(data).hex()
 
+
 def make_x_unique_link_id(galxe_id: Optional[str], suffix: str = "") -> str:
     base = "null" if galxe_id is None else str(galxe_id)
     raw = (base + (suffix)).encode("utf-8")
     return _keccak256_hex(raw)
+
+
+async def get_captcha(action: str, use_encrypted_data: bool = False):
+    try:
+
+        def sha256_hex(value: str) -> str:
+            return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+        gen_time = str(int(time.time()))
+
+        encrypted_data = json.loads(await get_encrypted(action, gen_time))
+
+        captcha = {
+            "lotNumber": sha256_hex(action),
+            "captchaOutput": encrypted_data["geetest_encrypted"],
+            "passToken": sha256_hex(gen_time),
+            "genTime": gen_time,
+            "encryptedData": "",
+        }
+
+        if use_encrypted_data:
+            captcha.update({"encryptedData": encrypted_data["encrypted_data"]})
+
+        return captcha
+    except Exception as e:
+        raise Exception(f"Failed to solve captcha: {str(e)}")

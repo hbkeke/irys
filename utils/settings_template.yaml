@@ -55,6 +55,8 @@ auto_replace_proxy: True
 
 # Api Key from https://dash.capmonster.cloud/
 capmonster_api_key: ""
+#Buy galxe subscription. Need 2$ in Native. Available networks: Arbitrum, Base, Polygon, Bsc
+buy_galxe_subscription: True
 #Network can use for bridge to Gravity, for Galxe quests. Available: ethereum, arbitrum, base, optimism, ink, mode, bsc, op_bnb, polygon, soneium, lisk, unichain, avalanche, zksync, linea
 network_for_bridge: [arbitrum, base, optimism]
 #Random diaposon for ETH bridge. (0.1$ - 0.5$ in ETH default)
