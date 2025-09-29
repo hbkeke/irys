@@ -68,7 +68,7 @@ class GalxeClient:
         return data
 
     async def choose_client_for_subscription(self):
-        network_values = [Networks.Base, Networks.Polygon, Networks.Arbitrum, Networks.BSC]
+        network_values = [Networks.Arbitrum, Networks.Base, Networks.Polygon, Networks.BSC]
         minimum_deposit_data = await self._get_minimum_deposit()
         minimum_deposit_data = minimum_deposit_data["data"]["instantPaymentTaskMinimumDepositAmount"]["tokens"]
         for network in network_values:
@@ -362,7 +362,7 @@ class GalxeClient:
     async def open_mystery_box(self, box_id: str = "1003", count: int = 1):
         if not self.bearer_token:
             await self.auth()
-        captcha = await get_captcha(action="OpenMysteryBox", use_encrypted_data=True)
+        captcha = await get_captcha(action="OpenMysteryBox", proxy=self.wallet.proxy, use_encrypted_data=True)
         json_data = {
             "operationName": "OpenMysteryBox",
             "variables": {
@@ -375,6 +375,9 @@ class GalxeClient:
             "query": "mutation OpenMysteryBox($input: OpenMysteryBoxInput!) {\n  openMysteryBox(input: $input) {\n    description\n    rewards {\n      rewardCount\n      rewardIndex\n      rewardId\n      tokenDetail {\n        ...TokenDetailFrag\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment TokenDetailFrag on TokenDetail {\n  id\n  chain\n  tokenDecimal\n  tokenLogo\n  tokenSymbol\n  tokenAddress\n  __typename\n}",
         }
         data = await self.request(json_data=json_data)
+        if "errors" in data:
+            logger.warning(f"{self.wallet} can't open mystery box {data['errors']}")
+            return None
         return data["data"]["openMysteryBox"]["rewards"][0]
 
     async def add_type(self, cred_id, campaign_id):

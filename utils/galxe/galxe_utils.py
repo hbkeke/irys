@@ -6,7 +6,7 @@ from typing import Optional
 
 from eth_hash.auto import keccak  # eth-hash
 
-from modules.wasm.wasm_client import get_encrypted
+from modules.wasm.wasm_client import get_encrypted_data
 
 GA_MAX_AGE = 60 * 60 * 24 * 365 * 2
 
@@ -39,7 +39,7 @@ def make_x_unique_link_id(galxe_id: Optional[str], suffix: str = "") -> str:
     return _keccak256_hex(raw)
 
 
-async def get_captcha(action: str, use_encrypted_data: bool = False):
+async def get_captcha(action: str, proxy: str, use_encrypted_data: bool = False):
     try:
 
         def sha256_hex(value: str) -> str:
@@ -47,7 +47,7 @@ async def get_captcha(action: str, use_encrypted_data: bool = False):
 
         gen_time = str(int(time.time()))
 
-        encrypted_data = json.loads(await get_encrypted(action, gen_time))
+        encrypted_data = json.loads(await get_encrypted_data(action, gen_time, proxy))
 
         captcha = {
             "lotNumber": sha256_hex(action),
