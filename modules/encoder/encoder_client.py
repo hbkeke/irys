@@ -1,15 +1,16 @@
 # get_encrypted.py
 import base64
 from pathlib import Path
+from urllib.parse import urlparse
 
 from patchright.async_api import async_playwright
-from pathlib import Path
+
 from utils.retry import async_retry
 
 BASE_DIR = Path(__file__).parent 
 
-CHUNK = BASE_DIR / "wasm_chunk.py"
-WASM = BASE_DIR / "wasm_lib.py"
+CHUNK = BASE_DIR / "encoder_chunk.py"
+WASM = BASE_DIR / "encoder_lib.py"
 
 HARNESS = r"""
 // 1) Make the webpack bus BEFORE evaluating the chunk
@@ -111,7 +112,7 @@ async ({ e, t, harnessCode, chunkCode, wasmB64 }) => {
 """
 
 
-from urllib.parse import urlparse
+
 def _parse_proxy_settings( proxy_str: str | None) -> dict:
         parsed = urlparse(proxy_str)
         

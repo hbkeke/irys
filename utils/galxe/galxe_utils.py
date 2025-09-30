@@ -6,7 +6,7 @@ from typing import Optional
 
 from eth_hash.auto import keccak  # eth-hash
 
-from modules.wasm.wasm_client import get_encrypted_data
+from modules.encoder.encoder_client import get_encrypted_data
 
 GA_MAX_AGE = 60 * 60 * 24 * 365 * 2
 
