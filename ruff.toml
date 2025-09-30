@@ -32,7 +32,7 @@ exclude = [
     "modules/tesst_module.py",
     "utils/captcha/*.py",
     "utils/discord/*.py",
-    "modules/wasm/*.py",
+    "modules/encoder/*.py",
 ]
 
 # Same as Black.
