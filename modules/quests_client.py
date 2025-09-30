@@ -161,6 +161,9 @@ class Quests(Irys):
                 await galxe_client.claim_points(campaign_id=campaign_id)
 
     async def complete_daily_irysverse_galxe_quests(self, galxe_client: GalxeClient):
+        
+        await galxe_client.open_mystery_box()
+        
         campaign_ids = ["GCo13t6RXN"]
         for campaign_id in campaign_ids:
             info = await galxe_client.get_quest_cred_list(campaign_id=campaign_id)
