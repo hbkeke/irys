@@ -1,10 +1,13 @@
 import asyncio
 import platform
+import sys
+from functools import partial
 
 import inquirer
 from colorama import Fore
 from inquirer import themes
 from rich.console import Console
+from rich.table import Table
 
 from check_python import check_python_version
 from data.constants import PROJECT_NAME
@@ -84,17 +87,46 @@ async def choose_action():
         console.print(f"[bold blue]Starting Import Wallets to DB[/bold blue]")
         await Export.wallets_to_txt()
     elif action == "Export data from database to CSV":
-        answer = input("Export excrypted prive keys to CSV Y/N: ")
-        if answer.lower() == "y":
-            result = export_to_csv(export_private_keys=True)
+        pk = [inquirer.List("pk", message="Export private keys to CSV?", choices=["yes", "no"], default="no")]
+        pk_answer = inquirer.prompt(pk, theme=themes.Default())
+
+        if pk_answer["pk"] == "yes":
+            func_to_export = partial(export_to_csv, export_private_keys=True)
+        elif pk_answer["pk"] == "no":
+            func_to_export = partial(export_to_csv, export_private_keys=False)
         else:
-            result = export_to_csv(export_private_keys=False)
+            sys.exit("Not supported type for export private keys.")
 
-        if result[0]:
-            console.print("[bold green]Successfully exported to:[/bold green]", result[1])
-        elif not result[0]:
-            console.print(f"[bold red]Export Failed [/bold red]")
+        table = Table(title="Export type explanation")
+        table.add_column("Mode", style="bold cyan")
+        table.add_column("Description", style="")
 
+        table.add_row("Overwrite", "Overwrite CSV file if it already exists")
+        table.add_row("Suffix", "Add database name as suffix to the CSV file")
+        table.add_row("Merge", "Merge all databases into a single CSV with column [source_db]")
+
+        console.print(table)
+
+        export_type = [
+            inquirer.List(
+                "type",
+                message="Choose export type",
+                choices=["Overwrite", "Suffix", "Merge"],
+            )
+        ]
+        export_type_answer = inquirer.prompt(export_type, theme=themes.Default())
+        mode = export_type_answer["type"].lower()
+
+        if mode in ("overwrite", "suffix", "merge"):
+            result = func_to_export(mode=mode)
+        else:
+            sys.exit("Not supported type for export type.")
+
+        success, export_path = result
+        if success:
+            console.print("[bold green]Successfully exported to:[/bold green]", export_path)
+        else:
+            console.print("[bold red]Export Failed[/bold red]")
     elif action == "1. Run All Activities":
         await activity(action=1)
 
