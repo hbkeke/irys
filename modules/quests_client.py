@@ -347,6 +347,7 @@ class Quests(Irys):
         return await twitter_client.follow_account(account_name=follow)
 
     async def check_available_claim(self):
+        return True
         gravity_balance = await self.client.wallet.balance()
         if gravity_balance.Ether > 2.5:
             return True
