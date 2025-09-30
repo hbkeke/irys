@@ -47,23 +47,26 @@ class Controller:
 
     async def complete_galxe_quests(self):
         galxe_client = GalxeClient(wallet=self.wallet, client=self.client)
+        await galxe_client.session()
+        return
         if await galxe_client.handle_subscribe():
             logger.info(f"{self.wallet} sleep 30 seconds after subscription")
             await asyncio.sleep(30)
             galxe_client = GalxeClient(wallet=self.wallet, client=self.client)
 
         functions = [
-            self.quest_client.complete_twitter_galxe_quests,
-            self.quest_client.complete_spritetype_galxe_quests,
-            self.quest_client.complete_irysverse_quiz,
+            # self.quest_client.complete_twitter_galxe_quests,
+            # self.quest_client.complete_spritetype_galxe_quests,
+            # self.quest_client.complete_irysverse_quiz,
             self.quest_client.complete_daily_irysverse_galxe_quests,
-            self.quest_client.complete_irys_other_games_quests,
+            # self.quest_client.complete_irys_other_games_quests,
         ]
         random.shuffle(functions)
         for func in functions:
             try:
                 await func(galxe_client)
-            except Exception:
+            except Exception as e:
+                logger.error(f"{self.wallet} wrong with quest. Error: {e}")
                 continue
         await self.quest_client.get_and_claim_mystery_box(galxe_client)
         await self.quest_client.claim_rewards(galxe_client)

@@ -205,7 +205,7 @@ class GalxeClient:
         params = self._get_claim_params(info)
         if not params:
             return False
-        captcha = await get_captcha("PrepareParticipate", use_encrypted_data=True)
+        captcha = await get_captcha("PrepareParticipate", use_encrypted_data=True, proxy=self.wallet.proxy)
         if params["pointMintAmount"] > 0 and params["mintCount"] > 0:
             params["pointMintAmount"] = 0
         prepare = await self.prepare_participate(
@@ -381,7 +381,7 @@ class GalxeClient:
         return data["data"]["openMysteryBox"]["rewards"][0]
 
     async def add_type(self, cred_id, campaign_id):
-        captcha = await get_captcha("AddTypedCredentialItems")
+        captcha = await get_captcha("AddTypedCredentialItems", proxy=self.wallet.proxy)
         json_data = {
             "operationName": "AddTypedCredentialItems",
             "variables": {
@@ -416,7 +416,7 @@ class GalxeClient:
         }
         await self.request(json_data=json_data)
 
-        captcha = await get_captcha("SyncCredentialValue")
+        captcha = await get_captcha("SyncCredentialValue", proxy=self.wallet.proxy)
         json_data = {
             "operationName": "SyncCredentialValue",
             "variables": {
