@@ -6,7 +6,7 @@ from typing import Optional
 
 from eth_hash.auto import keccak  # eth-hash
 
-from modules.wasm.wasm_client import get_encrypted
+from modules.wasm.wasm_client import get_encrypted_data
 
 GA_MAX_AGE = 60 * 60 * 24 * 365 * 2
 
@@ -39,27 +39,25 @@ def make_x_unique_link_id(galxe_id: Optional[str], suffix: str = "") -> str:
     return _keccak256_hex(raw)
 
 
-async def get_captcha(action: str, use_encrypted_data: bool = False):
-    try:
+async def get_captcha(action: str, proxy: str, use_encrypted_data: bool = False):
+    def sha256_hex(value: str) -> str:
+        return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
-        def sha256_hex(value: str) -> str:
-            return hashlib.sha256(value.encode("utf-8")).hexdigest()
+    gen_time = str(int(time.time()))
 
-        gen_time = str(int(time.time()))
+    encrypted_data = json.loads(await get_encrypted_data(action, gen_time, proxy))
+    if encrypted_data is None:
+        raise Exception("Failed to get encrypted data")
 
-        encrypted_data = json.loads(await get_encrypted(action, gen_time))
+    captcha = {
+        "lotNumber": sha256_hex(action),
+        "captchaOutput": encrypted_data["geetest_encrypted"],
+        "passToken": sha256_hex(gen_time),
+        "genTime": gen_time,
+        "encryptedData": "",
+    }
 
-        captcha = {
-            "lotNumber": sha256_hex(action),
-            "captchaOutput": encrypted_data["geetest_encrypted"],
-            "passToken": sha256_hex(gen_time),
-            "genTime": gen_time,
-            "encryptedData": "",
-        }
+    if use_encrypted_data:
+        captcha.update({"encryptedData": encrypted_data["encrypted_data"]})
 
-        if use_encrypted_data:
-            captcha.update({"encryptedData": encrypted_data["encrypted_data"]})
-
-        return captcha
-    except Exception as e:
-        raise Exception(f"Failed to solve captcha: {str(e)}")
+    return captcha

@@ -28,10 +28,13 @@ class Quests(Irys):
         value = info["data"]["addressInfo"]["userLevel"]["level"]["value"]
         box = await galxe_client.check_available_legend_box()
         if not box or int(gold) < 799 or int(value) < 3:
-            logger.warning(f"{self.wallet} don't avaibale for legendary box yet. Have GG: {gold}. Have Lvl: {value}")
+            logger.warning(f"{self.wallet} don't available for legendary box yet. Have GG: {gold}. Have Lvl: {value}")
             return False
-        logger.success(f"{self.wallet} avaibale for Legendary Box!")
+        logger.success(f"{self.wallet} available for Legendary Box!")
         open_box = await galxe_client.open_mystery_box()
+        if not open_box or not open_box.get("rewardCount"):
+            logger.warning(f"{self.wallet} can't open legendary box. Data: {open_box}")
+            return False
         amount_win = TokenAmount(amount=int(open_box["rewardCount"]), decimals=int(open_box["tokenDetail"]["tokenDecimal"]), wei=True)
         logger.success(f"{self.wallet} success win {amount_win.Ether} {open_box['tokenDetail']['tokenSymbol']} coins")
         return True
@@ -150,7 +153,8 @@ class Quests(Irys):
                             await asyncio.sleep(15)
                             break
                         else:
-                            logger.warning(f"{self.wallet} can't sync quest for {tier['name']} on Galxe. Wait update")
+                            logger.warning(f"{self.wallet} can't sync quest for {tier['name']} on Galxe. Sleep 60 seconds")
+                            await asyncio.sleep(60)
                             continue
 
             if await self.check_available_claim() or await galxe_client.get_subscription():
@@ -183,14 +187,15 @@ class Quests(Irys):
                 if not tier["eligible"]:
                     for _ in range(3):
                         await galxe_client.add_type(cred_id=tier["cred_id"], campaign_id=campaign_id)
+                        await asyncio.sleep(random.randint(3, 5))
                         sync = await galxe_client.sync_quest(cred_id=tier["cred_id"])
                         if sync:
                             logger.success(f"{self.wallet} success sync quest for {tier['name']} on Galxe")
                             await asyncio.sleep(15)
                             break
                         else:
-                            logger.warning(f"{self.wallet} can't sync quest for {tier['name']} on Galxe. Wait update")
-                            continue
+                            logger.warning(f"{self.wallet} can't sync quest for {tier['name']} on Galxe. Sleep 60 seconds")
+                            await asyncio.sleep(60)
 
             if await self.check_available_claim() or await galxe_client.get_subscription():
                 await galxe_client.claim_points(campaign_id=campaign_id)
@@ -239,7 +244,7 @@ class Quests(Irys):
                             #     continue
                             break
                         else:
-                            logger.warning(f"{self.wallet} can't sync quest for {tier['name']} on Galxe. Wait update")
+                            logger.warning(f"{self.wallet} can't sync quest for {tier['name']} on Galxe. Sleep 60 seconds")
                             await asyncio.sleep(60)
                             continue
                 # else:
@@ -297,7 +302,8 @@ class Quests(Irys):
                                     continue
                                 break
                             else:
-                                logger.warning(f"{self.wallet} can't sync quest for {tier['plays_required']} on Galxe. Wait update")
+                                logger.warning(f"{self.wallet} can't sync quest for {tier['plays_required']} on Galxe. Sleep 60 seconds")
+                                await asyncio.sleep(60)
                                 continue
                     else:
                         try:

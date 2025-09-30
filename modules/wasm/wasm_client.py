@@ -2,8 +2,9 @@
 import base64
 from pathlib import Path
 
-from playwright.async_api import async_playwright
+from patchright.async_api import async_playwright
 from pathlib import Path
+from utils.retry import async_retry
 
 BASE_DIR = Path(__file__).parent 
 
@@ -65,9 +66,13 @@ window.__exposeGlue__ = () => {
 };
 """
 
+# 1) Change EVAL_CALL to take harnessCode and eval it first
 EVAL_CALL = r"""
-async ({ e, t, chunkCode, wasmB64 }) => {
-  // minimal “browser-y” bits the bundle touches
+async ({ e, t, harnessCode, chunkCode, wasmB64 }) => {
+  // Install harness NOW, in this exact world
+  (0, eval)(harnessCode);
+
+  // Minimal stubs
   window.navigator ||= {
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
     languages: ['en-US','en'],
@@ -81,58 +86,75 @@ async ({ e, t, chunkCode, wasmB64 }) => {
   };
   window.performance ||= { now: () => Date.now() };
 
-  // 0) install harness
-  // (already added via addInitScript in Python, so nothing here)
+  // Sanity check
+  if (typeof window.__exposeGlue__ !== 'function') {
+    throw new Error("Harness not installed; typeof __exposeGlue__ = " + typeof window.__exposeGlue__);
+  }
 
-  // 1) Evaluate the chunk JS (it calls webpackChunk_N_E.push(...))
+  // 1) Evaluate your webpack chunk (captures modules)
   (0, eval)(chunkCode);
 
-  // 2) Expose glue (Ay/Qc)
+  // 2) Find glue (Ay/Qc)
   const glueId = window.__exposeGlue__();
-  if (!glueId || !window.__GLUE__) throw new Error("Glue not found; ids=" + Object.keys(window.__BUCKET__).join(','));
+  if (!glueId || !window.__GLUE__) {
+    throw new Error("Glue not found; ids=" + Object.keys(window.__BUCKET__).join(','));
+  }
 
-  // 3) Compile WASM from base64 and init Ay with Module
+  // 3) Compile WASM, init, call
   const bytes = Uint8Array.from(atob(wasmB64), c => c.charCodeAt(0));
   const module = await WebAssembly.compile(bytes);
   await window.__GLUE__.Ay(module);
 
-  // 4) Call Qc(e, t) -> stringified result
   const out = await window.__GLUE__.Qc(e, t);
   return (typeof out === 'string') ? out : JSON.stringify(out);
 }
 """
 
 
-async def get_encrypted(e: str, t: str):
-  
+from urllib.parse import urlparse
+def _parse_proxy_settings( proxy_str: str | None) -> dict:
+        parsed = urlparse(proxy_str)
+        
+        username = parsed.username or ""
+        password = parsed.password or ""
+        server = f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"
+        
+        return {
+            "server": server,
+            "username": username,
+            "password": password
+        }
+        
+@async_retry()
+async def get_encrypted_data(action: str, gen_time: str, proxy: str):
     chunk_code = CHUNK.read_text(encoding="utf-8")
-    wasm_b64 = base64.b64encode(WASM.read_bytes()).decode("ascii")  
-    
-    try:
-  
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch(headless=True)
+    wasm_b64 = base64.b64encode(WASM.read_bytes()).decode("ascii")
+
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(
+            channel="chrome",
+            headless=True,
+            proxy=_parse_proxy_settings(proxy),
+            args=["--ignore-gpu-blocklist", "--disable-dev-shm-usage", "--no-sandbox"],
+        )
+        try:
             page = await browser.new_page()
-
-            # install harness BEFORE the chunk
-            await page.add_init_script(HARNESS)
-
-            await page.goto("about:blank")
+            await page.goto("https://app.galxe.com/hub", wait_until="domcontentloaded", timeout=60_000)
 
             result = await page.evaluate(
                 EVAL_CALL,
-                {"e": e, "t": t, "chunkCode": chunk_code, "wasmB64": wasm_b64},
+                {
+                    "e": action,
+                    "t": gen_time,
+                    "harnessCode": HARNESS,
+                    "chunkCode": chunk_code,
+                    "wasmB64": wasm_b64,
+                },
             )
-
-            await browser.close()
             return result
-    except Exception as ex:
-        print("Error in get_encrypted:", ex)
-        return ""
+        finally:
+            await browser.close()
 
 
-# if __name__ == "__main__":
-#     e = sys.argv[1] if len(sys.argv) > 1 else "OpenMysteryBox"
-#     t = sys.argv[2] if len(sys.argv) > 2 else str(int(__import__("time").time()))
-#     out = asyncio.run(run(e, t))
-#     print(out)
+   
+ 
