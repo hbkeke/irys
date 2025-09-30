@@ -4,6 +4,7 @@ from pathlib import Path
 
 from patchright.async_api import async_playwright
 from pathlib import Path
+from utils.retry import async_retry
 
 BASE_DIR = Path(__file__).parent 
 
@@ -124,41 +125,36 @@ def _parse_proxy_settings( proxy_str: str | None) -> dict:
             "password": password
         }
         
- 
-async def get_encrypted_data(action: str, gen_time: str, proxy : str): 
+@async_retry()
+async def get_encrypted_data(action: str, gen_time: str, proxy: str):
+    chunk_code = CHUNK.read_text(encoding="utf-8")
+    wasm_b64 = base64.b64encode(WASM.read_bytes()).decode("ascii")
 
-    try:
-        chunk_code = CHUNK.read_text(encoding="utf-8")
-        wasm_b64 = base64.b64encode(WASM.read_bytes()).decode("ascii")
-        async with async_playwright() as context:
-            context.chromium.launch
-            browser = await context.chromium.launch(
-                channel="chrome",
-                headless=True,
-                proxy=_parse_proxy_settings(proxy),
-                args=["--ignore-gpu-blocklist","--disable-dev-shm-usage","--no-sandbox"]
-            )
-
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(
+            channel="chrome",
+            headless=True,
+            proxy=_parse_proxy_settings(proxy),
+            args=["--ignore-gpu-blocklist", "--disable-dev-shm-usage", "--no-sandbox"],
+        )
+        try:
             page = await browser.new_page()
+            await page.goto("https://app.galxe.com/hub", wait_until="domcontentloaded", timeout=60_000)
 
-            await page.goto("https://app.galxe.com/hub", wait_until="networkidle")
-      
             result = await page.evaluate(
                 EVAL_CALL,
                 {
                     "e": action,
                     "t": gen_time,
-                    "harnessCode": HARNESS,  
+                    "harnessCode": HARNESS,
                     "chunkCode": chunk_code,
                     "wasmB64": wasm_b64,
                 },
             )
-
-            await browser.close()
             return result
-    except Exception as ex:
-        print("Error in get_encrypted:", ex)
-        return ""
+        finally:
+            await browser.close()
+
 
    
  
