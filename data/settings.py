@@ -32,6 +32,7 @@ class Settings(Singleton):
         ).get("max")
         self.random_pause_wallet_after_all_completion_min = json_data.get("random_pause_wallet_after_all_completion", {}).get("min")
         self.random_pause_wallet_after_all_completion_max = json_data.get("random_pause_wallet_after_all_completion", {}).get("max")
+        self.capmonster_api_key = json_data.get("capmonster_api_key", "")
         self.network_for_bridge = json_data.get("network_for_bridge", [])
         self.auto_replace_proxy = json_data.get("auto_replace_proxy ", True)
         self.random_eth_for_bridge_min = json_data.get("random_eth_for_bridge", {}).get("min")

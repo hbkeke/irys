@@ -53,6 +53,8 @@ random_pause_start_wallet:
 #Perform automatic replacement from proxy reserve files
 auto_replace_proxy: True
 
+# Api Key from https://dash.capmonster.cloud/
+capmonster_api_key: ""
 #Buy galxe subscription. Need 2$ in Native. Available networks: Arbitrum, Base, Polygon, Bsc
 buy_galxe_subscription: True
 #Network can use for bridge to Gravity, for Galxe quests. Available: ethereum, arbitrum, base, optimism, ink, mode, bsc, op_bnb, polygon, soneium, lisk, unichain, avalanche, zksync, linea
