@@ -26,9 +26,14 @@ class Quests(Irys):
         info = await galxe_client.session()
         gold = info["data"]["addressInfo"]["userLevel"]["gold"]
         value = info["data"]["addressInfo"]["userLevel"]["level"]["value"]
+
+        if int(gold) < 799 or int(value) < 3:
+            logger.warning(f"{self.wallet} don’t have enough criteria to open the legendary box. Have GG: {gold}. Have Lvl: {value}")
+            return False
+
         box = await galxe_client.check_available_legend_box()
-        if not box or int(gold) < 799 or int(value) < 3:
-            logger.warning(f"{self.wallet} don't available for legendary box yet. Have GG: {gold}. Have Lvl: {value}")
+        if not box:
+            logger.warning(f"{self.wallet} Legendary box not ready yet. Will try next time to sync. Gold: {gold}. Lvl: {value}")
             return False
         logger.success(f"{self.wallet} available for Legendary Box!")
         open_box = await galxe_client.open_mystery_box()
