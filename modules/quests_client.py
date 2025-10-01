@@ -29,14 +29,14 @@ class Quests(Irys):
 
         required_gold_min = 799
         if int(gold) < required_gold_min or int(value) < 3:
-            logger.warning(
+            logger.debug(
                 f"{self.wallet} don’t have enough {required_gold_min} GG to open the legendary box. Have GG: {gold}. Have Lvl: {value}"
             )
             return False
 
         box = await galxe_client.check_available_legend_box()
         if not box:
-            logger.warning(f"{self.wallet} Legendary box not ready yet. Will try next time to sync. Gold: {gold}. Lvl: {value}")
+            logger.debug(f"{self.wallet} Legendary box not ready yet. Will try next time to sync. Gold: {gold}. Lvl: {value}")
             return False
         logger.success(f"{self.wallet} available for Legendary Box!")
         open_box = await galxe_client.open_mystery_box()

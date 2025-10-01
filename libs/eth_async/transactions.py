@@ -192,7 +192,6 @@ class Transactions:
             block = await self.client.w3.eth.get_block("latest")
             base_fee = int(block.get("baseFeePerGas") or 0)
 
-          
             tip = int((await self.max_priority_fee()).Wei * random.uniform(1.1, 1.5))
 
             min_required = base_fee + tip
