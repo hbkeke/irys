@@ -4,10 +4,11 @@ from web3.types import TxParams
 
 from libs.base import Base
 from libs.eth_async.client import Client
-from libs.eth_async.data.models import RawContract, TokenAmount, TxArgs
+from libs.eth_async.data.models import Network, RawContract, TokenAmount, TxArgs
 from libs.eth_async.utils.files import read_json
 from utils.browser import Browser
 from utils.db_api.models import Wallet
+from loguru import logger
 
 
 class GalxeOnchain(Base):
@@ -134,8 +135,12 @@ class GalxeOnchain(Base):
 
     async def subscription(self, client: Base, data: dict):
         data = data["data"]["registerInstantPaymentTask"]
+        if client.client.network.name.upper() == "BASE":
+            json_name = "base_galxe_subscription.json"
+        else:
+            json_name = "galxesubscription.json"
         contract = RawContract(
-            title="Galxe Sub", address=data["contractAddress"], abi=read_json(path=os.path.join(self.current_dir, "galxesubscription.json"))
+            title="Galxe Sub", address=data["contractAddress"], abi=read_json(path=os.path.join(self.current_dir, json_name)) 
         )
         contract = await self.client.contracts.get(contract)
         function = "crossChainSwapDeposit"
@@ -155,11 +160,11 @@ class GalxeOnchain(Base):
             _targetToken=data["crossChainSwapDepositResponse"]["targetToken"],
             _sourceSwap=[
                 int(data["crossChainSwapDepositResponse"]["sourceSwap"]["minOut"]),
-                int(data["crossChainSwapDepositResponse"]["sourceSwap"]["feeTier"]),
+                data["crossChainSwapDepositResponse"]["sourceSwapPath"] if client.client.network.name.upper() == "BASE" else int(data["crossChainSwapDepositResponse"]["sourceSwap"]["feeTier"]),
             ],
             _targetSwap=[
                 int(data["crossChainSwapDepositResponse"]["targetSwap"]["minOut"]),
-                int(data["crossChainSwapDepositResponse"]["targetSwap"]["feeTier"]),
+                data["crossChainSwapDepositResponse"]["targetSwapPath"] if client.client.network.name.upper() == "BASE" else int(data["crossChainSwapDepositResponse"]["targetSwap"]["feeTier"]),
             ],
             _permit=[
                 0,
@@ -184,3 +189,37 @@ class GalxeOnchain(Base):
             return result.tx_hash
         else:
             raise Exception(f"Galxe Subscription failed: {result.error_message}")
+
+    async def relay_bridge(self, client: Base, amount: TokenAmount, to_chain: Network, to_wallet: str | None = None):
+        json_data = {
+            'user': f'{client.client.account.address}',
+            'originChainId': client.client.network.chain_id,
+            'destinationChainId': to_chain.chain_id,
+            'originCurrency': '0x0000000000000000000000000000000000000000',
+            'destinationCurrency': '0x0000000000000000000000000000000000000000',
+            'recipient': f'{to_wallet if to_wallet else client.client.account.address}',
+            'tradeType': 'EXACT_INPUT',
+            'amount': f'{amount.Wei}',
+            'referrer': 'relay.link/swap',
+            'useExternalLiquidity': False,
+            'useDepositAddress': False,
+            'topupGas': False,
+        }
+        response = await self.browser.post(url="https://api.relay.link/quote", json=json_data)
+        data = response.json()
+        if "INSUFFICIENT_LIQUIDITY" in str(data):
+            logger.warning(f"{self.wallet} relay don't  have enough liquidity for bridge")
+            return False
+        logger.debug(data)
+        step = data['steps'][0]['items'][0]['data']  
+        to_address = step['to']
+        tx_data = step['data']  
+        to_address = self.client.w3.to_checksum_address(to_address)
+        tx_params = TxParams(to=to_address, data=tx_data, value=amount.Wei)
+
+        result = await client.execute_transaction(tx_params=tx_params, activity_type=f"Relay bridge from {client.client.network.name} {amount.Ether} Ether to {to_chain.name}")
+
+        if result.success:
+            return result.tx_hash
+        else:
+            raise Exception(f"Relay Bridge failed: {result.error_message}")

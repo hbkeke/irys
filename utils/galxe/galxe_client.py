@@ -2,16 +2,19 @@ import asyncio
 import random
 import time
 import uuid
+import math
 
 from loguru import logger
 
 from data.settings import Settings
+from data.models import okx_credentials
 from libs.base import Base
 from libs.eth_async.client import Client
 from libs.eth_async.data.models import Network, Networks, TokenAmount
 from utils.browser import Browser
 from utils.db_api.models import Wallet
 from utils.retry import async_retry
+from utils.cex_withdrawal import OKXActions
 
 from .galxe_auth import AuthClient
 from .galxe_onchain import GalxeOnchain
@@ -77,13 +80,25 @@ class GalxeClient:
                 native_balance = await client.wallet.balance()
                 if network.name == "polygon":
                     pol_rate = TokenAmount(amount=minimum_deposit_data[13]["amount"], wei=True)
-                    rate = round(float(pol_rate.Ether), 5)
+                    order = math.floor(math.log10(pol_rate.Wei))
+                    scale = 10 ** (order - 5)
+                    res = math.ceil(pol_rate.Wei / scale) * scale
+                    rate = float(TokenAmount(amount=res, wei=True).Ether)
                 elif network.name == "bsc":
                     bnb_rate = TokenAmount(amount=minimum_deposit_data[10]["amount"], wei=True)
-                    rate = round(float(bnb_rate.Ether), 5)
+                    order = math.floor(math.log10(bnb_rate.Wei))
+                    scale = 10 ** (order - 2)
+                    res = math.ceil(bnb_rate.Wei / scale) * scale
+                    rate = float(TokenAmount(amount=res, wei=True).Ether)
                 else:
                     eth_rate = TokenAmount(amount=minimum_deposit_data[1]["amount"], wei=True)
-                    rate = round(float(eth_rate.Ether), 4)
+                    logger.debug(eth_rate.Wei)
+                    order = math.floor(math.log10(eth_rate.Wei))
+                    scale = 10 ** (order - 1)
+                    res = math.ceil(eth_rate.Wei / scale) * scale
+                    rate = float(TokenAmount(amount=res, wei=True).Ether)
+
+                logger.debug(rate)
                 deposit = TokenAmount(amount=rate)
                 logger.debug(f"{self.wallet} native balance in {network.name}: {native_balance.Ether}")
                 logger.debug(f"{self.wallet} calculated deposit {deposit.Ether}")
@@ -94,7 +109,10 @@ class GalxeClient:
             except Exception as e:
                 logger.warning(f"{self.wallet} can't check network {network.name} error: {e}")
                 continue
-        return None, None, None
+        bridge =  await self.handle_bridge_subscribe()
+        if bridge:
+            return await self.choose_client_for_subscription()
+        return None,None,None
 
     async def choose_available_client(self):
         network_values = [value for key, value in Networks.__dict__.items() if isinstance(value, Network)]
@@ -166,7 +184,124 @@ class GalxeClient:
         }
         return await self.request(json_data=json_data)
 
-    async def handle_bridge(self):
+    async def handle_bridge_subscribe(self):
+        base_client = await self.choose_subscribe_client()
+        if not base_client:
+            logger.warning(f"{self.wallet} no one Network can be choisen for bridge. Try withdraw from OKX")
+            withdraw_from_okx = await self.withdraw_from_okx()
+            if withdraw_from_okx:
+                await asyncio.sleep(10)
+                return await self.handle_bridge_subscribe()
+            return False
+        network_values = [Networks.Arbitrum, Networks.Base, Networks.Polygon, Networks.BSC]
+        if base_client.client.network in network_values:
+            return True
+
+        random_network_for_bridge = random.choice([Networks.Arbitrum, Networks.Base])
+        client_for_random_network = Client(private_key=self.client.account._private_key.hex(), network=random_network_for_bridge, proxy=self.wallet.proxy)
+        start_balance = await client_for_random_network.wallet.balance()
+
+        base_client_balance = await base_client.client.wallet.balance()
+        coingecko_price = await self.get_coingecko_price(network_name=base_client.client.network.name)
+        maximum_amount_to_bridge = Settings().withdrawal_amount_max / coingecko_price
+        if float(base_client_balance.Ether) > maximum_amount_to_bridge:
+            amount_for_bridge = random.uniform(Settings().withdrawal_amount_min, Settings().withdrawal_amount_max)
+            amount_for_bridge = amount_for_bridge / coingecko_price
+        else:
+            amount_for_bridge = float(base_client_balance.Ether) * 0.98
+        bridge = await self.galxe_onchain.relay_bridge(client=base_client, amount=TokenAmount(amount_for_bridge), to_chain=random_network_for_bridge)
+        if not bridge:
+            return False
+        return await self.wait_deposit(client=client_for_random_network, start_balance=start_balance)
+
+    @async_retry()
+    async def withdraw_from_okx(self):
+        if not okx_credentials.completely_filled():
+            logger.warning(f"{self.wallet} Fill OKX credentials for withdraw in settings.yaml")
+            return False
+        okx_actions = OKXActions(credentials=okx_credentials)
+        network, amount_to_withdraw = await self.choose_available_client_for_withdraw(okx_client=okx_actions)
+        if not network or not amount_to_withdraw:
+            logger.warning(f"{self.wallet} can't choose any network for withdraw from OKX")
+            return False
+        client = Client(private_key=self.client.account._private_key.hex(), network=network, proxy=self.wallet.proxy)
+        start_balance = await client.wallet.balance()
+        withdraw = await okx_actions.withdraw(to_address=self.wallet.address, amount=amount_to_withdraw, token_symbol=network.coin_symbol, chain=network.name)
+        if not withdraw:
+            return False
+        logger.success(f"{self.wallet} succes withdraw {amount_to_withdraw} {network.coin_symbol} to {network.name} network. Withdrawal ID: {withdraw}")
+        return await self.wait_deposit(client=client, start_balance=start_balance)
+
+    @async_retry()
+    async def get_coingecko_price(self, network_name: str):
+        if network_name == "polygon":
+            token = "polygon-ecosystem-token"
+        else:
+            token = "ethereum"
+        coingecko_url = f"https://api.coingecko.com/api/v3/simple/price?ids={token}&vs_currencies=usd"
+        coingecko_request = await self.browser.get(url=coingecko_url)
+        coingecko_data = coingecko_request.json()
+        return coingecko_data[token]['usd']
+
+    async def choose_available_client_for_withdraw(self, okx_client: OKXActions):
+        network_values = [value for key, value in Networks.__dict__.items() if isinstance(value, Network)]
+        random.shuffle(network_values)
+        eth_price = None
+        for network in network_values:
+            if network.name in Settings().network_for_withdraw:
+                get_balance = await okx_client.get_master_acc_balance(token_symbol=network.coin_symbol)
+                logger.debug(float(get_balance))
+                if get_balance == 0:
+                    continue
+                if network.coin_symbol == "ETH" and not eth_price:
+                    coingecko_price = await self.get_coingecko_price(network_name=network.name)
+                    eth_price=coingecko_price
+                elif network.coin_symbol == "ETH" and eth_price:
+                    coingecko_price=eth_price
+                else:
+                    coingecko_price = await self.get_coingecko_price(network_name=network.name)
+                random_withdraw_amount_usd = random.uniform(Settings().withdrawal_amount_min, Settings().withdrawal_amount_max)
+                amount_to_withdraw = float(random_withdraw_amount_usd) / float(coingecko_price)
+                get_fee = await okx_client.get_withdrawal_fee(token_symbol=network.coin_symbol, chain=network.name)
+                logger.debug(get_fee)
+                min_withdrawal = await okx_client.get_minimal_withdrawal(token_symbol=network.coin_symbol, chain=network.name)
+                logger.debug(min_withdrawal)
+                if get_fee and get_balance - get_fee < amount_to_withdraw or not min_withdrawal or min_withdrawal > amount_to_withdraw:
+                    continue
+                return network, amount_to_withdraw 
+
+        return None, None
+
+    async def choose_subscribe_client(self):
+        network_values = [value for key, value in Networks.__dict__.items() if isinstance(value, Network)]
+        random.shuffle(network_values)
+        eth_price = None
+        for network in network_values:
+            if network.name in Settings().network_for_bridge or network.name in Settings().network_for_withdraw:
+                try:
+                    client = Client(private_key=self.client.account._private_key.hex(), network=network, proxy=self.client.proxy)
+                    if network.coin_symbol == "ETH" and not eth_price:
+                        coingecko_price = await self.get_coingecko_price(network_name=client.network.name)
+                        eth_price=coingecko_price
+                    elif network.coin_symbol == "ETH" and eth_price:
+                        coingecko_price = eth_price
+                    else:
+                        coingecko_price = await self.get_coingecko_price(network_name=client.network.name)
+                    logger.debug(network.name)
+                    logger.debug(coingecko_price)
+                    amount_to_bridge = Settings().withdrawal_amount_min / coingecko_price
+                    logger.debug(amount_to_bridge)
+                    balance = await client.wallet.balance()
+                    logger.debug(balance)
+                    if balance.Ether > amount_to_bridge:
+                        base_client = Base(client=client, wallet=self.wallet)
+                        return base_client
+                except Exception as e:
+                    logger.warning(f"{self.wallet} can't check network {network.name} error: {e}")
+                    continue
+
+
+    async def handle_bridge_gravity(self):
         base_client = await self.choose_available_client()
         if not base_client:
             logger.warning(f"{self.wallet} no one Network can be choisen for ETH transfer")
@@ -176,20 +311,20 @@ class GalxeClient:
         bridge = await self.galxe_onchain.gas_zip_bridge(client=base_client, amount=TokenAmount(amount_for_bridge))
         if not bridge:
             return False
-        return await self.wait_deposit(start_balance=start_balance)
+        return await self.wait_deposit(client=self.client, start_balance=start_balance)
 
-    async def wait_deposit(self, start_balance: TokenAmount):
+    async def wait_deposit(self, client:Client, start_balance: TokenAmount):
         timeout = 600
         start_time = time.time()
 
         while True:
             elapsed = time.time() - start_time
             if elapsed > timeout:
-                logger.warning(f"{self.wallet} deposit to gravity did not arrive after {timeout} seconds")
+                logger.warning(f"{self.wallet} deposit to {client.network.name} did not arrive after {timeout} seconds")
                 return False
 
-            logger.info(f"{self.wallet} waiting for deposit to gravity (elapsed: {int(elapsed)}s)")
-            balance = await self.client.wallet.balance()
+            logger.info(f"{self.wallet} waiting for deposit to {client.network.name} (elapsed: {int(elapsed)}s)")
+            balance = await client.wallet.balance()
 
             if start_balance.Wei < balance.Wei:
                 logger.info(f"{self.wallet} deposit detected")
@@ -251,7 +386,7 @@ class GalxeClient:
             balance = await self.client.wallet.balance()
             amounts = [TokenAmount(amount).Wei for amount in amounts]
             if balance.Wei <= int(claim_fee):
-                bridge = await self.handle_bridge()
+                bridge = await self.handle_bridge_gravity()
                 if not bridge:
                     return False
             return await self.galxe_onchain.handle_claim_onchain_points(

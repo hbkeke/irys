@@ -74,7 +74,7 @@ withdrawal_amount:
   min: 2.2
   max: 2.5
 #Network can use for withdraw for galxe subscription. 
-network_for_withdraw: [arbitrum, base, optimism, polygon]
+network_for_withdraw: [arbitrum, base, optimism, polygon, linea]
 
 #Irys Onchain
 #Multiple Mint. Minting more > 1 NFT to Wallet

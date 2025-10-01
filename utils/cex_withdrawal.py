@@ -2,6 +2,7 @@
 import asyncio
 import random
 
+from data.settings import Settings
 from loguru import logger
 
 from data.models import okx_credentials
@@ -80,10 +81,55 @@ class OKXActions:
                     total_frozen_bal += frozen_bal
         return total_frozen_bal
 
+    async def get_minimal_withdrawal(self, token_symbol: str, chain: str) -> float | None:
+        token_symbol = token_symbol.upper()
+        chain = chain.lower()
+
+        if chain == "arbitrum":
+            chain = "Arbitrum One"
+        elif chain == "zksync":
+            chain = "zkSync Era"
+        elif chain == "ethereum":
+            chain = "ERC20"
+        else:
+            chain = chain.capitalize()
+
+        currencies = await self.okx_client.asset.currencies(token_symbol=token_symbol)
+
+        if token_symbol not in currencies:
+            logger.debug(currencies)
+            logger.debug(token_symbol)
+
+            return None
+
+        currency = currencies[token_symbol]
+        if chain not in currency:
+            logger.debug(currency)
+            logger.debug(chain)
+
+            return None
+
+        currency_info: Currency = currency[chain]
+        logger.debug(currency_info)
+        if currency_info.minWd:
+            return currency_info.minWd
+        return None
+
+
     async def get_withdrawal_fee(self, token_symbol: str, chain: str) -> float | None:
         token_symbol = token_symbol.upper()
+        chain = chain.lower()
 
-        chain = 'BSC' if chain.lower() == 'bsc' else chain
+        if chain == "arbitrum":
+            chain = "Arbitrum One"
+        elif chain == "zksync":
+            chain = "zkSync Era"
+        elif chain == "ethereum":
+            chain = "ERC20"
+        elif chain == 'bsc':
+            chain = 'bsc'
+        else:
+            chain = chain.capitalize()
 
         currencies = await self.okx_client.asset.currencies(token_symbol=token_symbol)
 
@@ -118,31 +164,44 @@ class OKXActions:
             amount: float | int | str,
             token_symbol: str = 'APT',
             chain: str = Chains.Aptos,
-    ) -> str:
+    ) -> bool | int:
         failed_text = 'Failed to withdraw from OKX'
         try:
             if not self.okx_client:
-                return f'{failed_text}: there is no okx_client'
+                logger.error(f'{failed_text}: there is no okx_client')
+                return False
+            if chain == "arbitrum":
+                chain = "Arbitrum One"
+            elif chain == "zksync":
+                chain = "zkSync Era"
+            elif chain == "ethereum":
+                chain = "ERC20"
+            elif chain == 'bsc':
+                chain = 'bsc'
+            else:
+                chain = chain.capitalize()
 
             fee = await self.get_withdrawal_fee(token_symbol=token_symbol, chain=chain)
             fee = str(f'{fee :.18f}')
 
             if not fee:
-                return f'{failed_text} | can not get fee for withdraw'
+                logger.error(f'{failed_text} | can not get fee for withdraw')
+                return False
             withdrawal_token = await self.okx_client.asset.withdrawal(
                 token_symbol=token_symbol, amount=amount, toAddr=to_address, fee=fee, chain=chain
             )
             withdrawal_id = withdrawal_token.wdId
             if withdrawal_id:
-                return f'A withdrawal request of {amount} {token_symbol} was sent: ({withdrawal_id}) to {to_address}'
+                return withdrawal_id
 
-            return f'{failed_text}!'
+            logger.error(f'{failed_text}!')
+            return False
         except APIException as e:
             logger.error(f'{to_address} | {e}')
-            return f'{failed_text}: {e}'
+            return False
         except BaseException as e:
             logger.exception(f'withdraw: {e}')
-            return f'{failed_text}: {e}'
+            return False
 
     async def check_withdrawal_status(
             self,

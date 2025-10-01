@@ -299,18 +299,18 @@ class Network:
         self,
         name: str,
         rpc: str,
+        coin_symbol: str,
         decimals: int | None = None,
         chain_id: int | None = None,
         tx_type: int = 0,
-        coin_symbol: str | None = None,
         explorer: str | None = None,
         api: API | None = None,
     ) -> None:
         self.name: str = name.lower()
         self.rpc: str = rpc
+        self.coin_symbol: str = coin_symbol
         self.chain_id: int | None = chain_id
         self.tx_type: int = tx_type
-        self.coin_symbol: str | None = coin_symbol
         self.explorer: str | None = explorer
         self.decimals = decimals
         self.api = api
