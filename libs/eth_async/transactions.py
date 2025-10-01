@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
 import random
+from typing import TYPE_CHECKING, Any
 
 from eth_account.datastructures import SignedTransaction
 from hexbytes import HexBytes

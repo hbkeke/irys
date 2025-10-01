@@ -51,34 +51,33 @@ class Currency(ReprWithoutData):
 
         """
         self.data: Dict[str, Any] = data
-        self.canDep: bool = data.get('canDep')
-        self.canInternal: bool = data.get('canInternal')
-        self.canWd: bool = data.get('canWd')
-        self.token_symbol: str = data.get('ccy')
-        self.chain: str = '-'.join(data.get('chain').split('-')[1:])
-        #self.depQuotaFixed: Optional[str] = data.get('depQuotaFixed')
-        #self.depQuotaFixed = self.depQuotaFixed if self.depQuotaFixed else None
-        self.depQuoteDailyLayer2: Optional[float] = data.get('depQuoteDailyLayer2')
+        self.canDep: bool = data.get("canDep")
+        self.canInternal: bool = data.get("canInternal")
+        self.canWd: bool = data.get("canWd")
+        self.token_symbol: str = data.get("ccy")
+        self.chain: str = "-".join(data.get("chain").split("-")[1:])
+        # self.depQuotaFixed: Optional[str] = data.get('depQuotaFixed')
+        # self.depQuotaFixed = self.depQuotaFixed if self.depQuotaFixed else None
+        self.depQuoteDailyLayer2: Optional[float] = data.get("depQuoteDailyLayer2")
         self.depQuoteDailyLayer2 = float(self.depQuoteDailyLayer2) if self.depQuoteDailyLayer2 else None
-        self.logoLink: str = data.get('logoLink')
-        self.mainNet: bool = data.get('mainNet')
-        self.maxFee: float = float(data.get('maxFee'))
-        #self.maxFeeForCtAddr: float = float(data.get('maxFeeForCtAddr'))
-        self.maxWd: float = float(data.get('maxWd'))
-        self.minDep: float = float(data.get('minDep'))
-        self.minDepArrivalConfirm: int = int(data.get('minDepArrivalConfirm'))
-        self.minFee: float = float(data.get('minFee'))
-        #self.minFeeForCtAddr: float = float(data.get('minFeeForCtAddr'))
-        self.minWd: float = float(data.get('minWd'))
-        self.minWdUnlockConfirm: int = int(data.get('minWdUnlockConfirm'))
-        self.name: str = data.get('name')
-        self.needTag: bool = data.get('needTag')
-        #self.usedDepQuoxnjtaFixed: Optional[str] = data.get('usedDepQuotaFixed')
-        #self.usedDepQuotaFixed = self.usedDepQuotaFixed if self.usedDepQuotaFixed else None
-        self.usedWdQuota: float = float(data.get('usedWdQuota'))
-        self.wdQuota: float = float(data.get('wdQuota'))
-        self.wdTickSz: int = int(data.get('wdTickSz'))
-
+        self.logoLink: str = data.get("logoLink")
+        self.mainNet: bool = data.get("mainNet")
+        self.maxFee: float = float(data.get("maxFee"))
+        # self.maxFeeForCtAddr: float = float(data.get('maxFeeForCtAddr'))
+        self.maxWd: float = float(data.get("maxWd"))
+        self.minDep: float = float(data.get("minDep"))
+        self.minDepArrivalConfirm: int = int(data.get("minDepArrivalConfirm"))
+        self.minFee: float = float(data.get("minFee"))
+        # self.minFeeForCtAddr: float = float(data.get('minFeeForCtAddr'))
+        self.minWd: float = float(data.get("minWd"))
+        self.minWdUnlockConfirm: int = int(data.get("minWdUnlockConfirm"))
+        self.name: str = data.get("name")
+        self.needTag: bool = data.get("needTag")
+        # self.usedDepQuoxnjtaFixed: Optional[str] = data.get('usedDepQuotaFixed')
+        # self.usedDepQuotaFixed = self.usedDepQuotaFixed if self.usedDepQuotaFixed else None
+        self.usedWdQuota: float = float(data.get("usedWdQuota"))
+        self.wdQuota: float = float(data.get("wdQuota"))
+        self.wdTickSz: int = int(data.get("wdTickSz"))
 
 
 @dataclass
@@ -86,6 +85,7 @@ class TransactionType(StateName):
     """
     An instance of a deposit/withdrawal type.
     """
+
     pass
 
 
@@ -93,8 +93,9 @@ class TransactionTypes:
     """
     An instance with all deposit/withdrawal types.
     """
-    Internal = TransactionType(state='3', name='internal')
-    OnChain = TransactionType(state='4', name='on-chain')
+
+    Internal = TransactionType(state="3", name="internal")
+    OnChain = TransactionType(state="4", name="on-chain")
 
 
 @dataclass
@@ -102,6 +103,7 @@ class DepositStatus(StateName):
     """
     An instance of a deposit status.
     """
+
     pass
 
 
@@ -109,24 +111,25 @@ class DepositStatuses:
     """
     An instance with all deposit statuses.
     """
-    WaitingForConfirmation = DepositStatus(state='0', name='waiting for confirmation')
-    Credited = DepositStatus(state='1', name='deposit credited')
-    Successful = DepositStatus(state='2', name='deposit successful')
-    Pending = DepositStatus(state='8', name='pending due to temporary deposit suspension on this crypto currency')
-    BlacklistedAddress = DepositStatus(state='11', name='match the address blacklist')
-    Frozen = DepositStatus(state='12', name='account or deposit is frozen')
-    Subaccount = DepositStatus(state='13', name='sub-account deposit interception')
-    KYCLimit = DepositStatus(state='14', name='KYC limit')
+
+    WaitingForConfirmation = DepositStatus(state="0", name="waiting for confirmation")
+    Credited = DepositStatus(state="1", name="deposit credited")
+    Successful = DepositStatus(state="2", name="deposit successful")
+    Pending = DepositStatus(state="8", name="pending due to temporary deposit suspension on this crypto currency")
+    BlacklistedAddress = DepositStatus(state="11", name="match the address blacklist")
+    Frozen = DepositStatus(state="12", name="account or deposit is frozen")
+    Subaccount = DepositStatus(state="13", name="sub-account deposit interception")
+    KYCLimit = DepositStatus(state="14", name="KYC limit")
 
     statuses_dict = {
-        '0': WaitingForConfirmation,
-        '1': Credited,
-        '2': Successful,
-        '8': Pending,
-        '11': BlacklistedAddress,
-        '12': Frozen,
-        '13': Subaccount,
-        '14': KYCLimit
+        "0": WaitingForConfirmation,
+        "1": Credited,
+        "2": Successful,
+        "8": Pending,
+        "11": BlacklistedAddress,
+        "12": Frozen,
+        "13": Subaccount,
+        "14": KYCLimit,
     }
 
 
@@ -164,20 +167,20 @@ class Deposit(ReprWithoutData):
 
         """
         self.data: Dict[str, Any] = data
-        self.token_symbol: str = data.get('ccy')
-        self.chain: str = '-'.join(data.get('chain').split('-')[1:])
-        self.amt: float = float(data.get('amt'))
-        self.from_: str = data.get('from')
-        self.areaCodeFrom: str = data.get('areaCodeFrom')
-        self.to_: str = data.get('to')
-        self.txId: str = data.get('txId')
-        self.ts: int = data.get('ts')
+        self.token_symbol: str = data.get("ccy")
+        self.chain: str = "-".join(data.get("chain").split("-")[1:])
+        self.amt: float = float(data.get("amt"))
+        self.from_: str = data.get("from")
+        self.areaCodeFrom: str = data.get("areaCodeFrom")
+        self.to_: str = data.get("to")
+        self.txId: str = data.get("txId")
+        self.ts: int = data.get("ts")
         self.ts = int(int(self.ts) / 1000) if self.ts else 0
-        self.state: Optional[DepositStatus] = DepositStatuses.statuses_dict.get(data.get('state'))
-        self.depId: int = int(data.get('depId'))
-        self.fromWdId: Optional[int] = data.get('fromWdId')
+        self.state: Optional[DepositStatus] = DepositStatuses.statuses_dict.get(data.get("state"))
+        self.depId: int = int(data.get("depId"))
+        self.fromWdId: Optional[int] = data.get("fromWdId")
         self.fromWdId = int(self.fromWdId) if self.fromWdId else None
-        self.actualDepBlkConfirm: int = int(data.get('actualDepBlkConfirm'))
+        self.actualDepBlkConfirm: int = int(data.get("actualDepBlkConfirm"))
 
 
 @dataclass
@@ -185,6 +188,7 @@ class WithdrawalStatus(StateName):
     """
     An instance of a withdrawal status.
     """
+
     pass
 
 
@@ -192,36 +196,37 @@ class WithdrawalStatuses:
     """
     An instance with all withdrawal statuses.
     """
-    Canceling = WithdrawalStatus(state='-3', name='canceling')
-    Canceled = WithdrawalStatus(state='-2', name='canceled')
-    Failed = WithdrawalStatus(state='-1', name='failed')
-    WaitingWithdrawal = WithdrawalStatus(state='0', name='waiting withdrawal')
-    Withdrawing = WithdrawalStatus(state='1', name='withdrawing')
-    WithdrawSuccess = WithdrawalStatus(state='2', name='withdraw success')
-    WaitingMannualReview4 = WithdrawalStatus(state='4', name='waiting mannual review')
-    WaitingMannualReview5 = WithdrawalStatus(state='5', name='waiting mannual review')
-    WaitingMannualReview6 = WithdrawalStatus(state='6', name='waiting mannual review')
-    Approved = WithdrawalStatus(state='7', name='approved')
-    WaitingMannualReview8 = WithdrawalStatus(state='8', name='waiting mannual review')
-    WaitingMannualReview9 = WithdrawalStatus(state='9', name='waiting mannual review')
-    WaitingTransfer = WithdrawalStatus(state='10', name='waiting transfer')
-    WaitingMannualReview12 = WithdrawalStatus(state='12', name='waiting mannual review')
+
+    Canceling = WithdrawalStatus(state="-3", name="canceling")
+    Canceled = WithdrawalStatus(state="-2", name="canceled")
+    Failed = WithdrawalStatus(state="-1", name="failed")
+    WaitingWithdrawal = WithdrawalStatus(state="0", name="waiting withdrawal")
+    Withdrawing = WithdrawalStatus(state="1", name="withdrawing")
+    WithdrawSuccess = WithdrawalStatus(state="2", name="withdraw success")
+    WaitingMannualReview4 = WithdrawalStatus(state="4", name="waiting mannual review")
+    WaitingMannualReview5 = WithdrawalStatus(state="5", name="waiting mannual review")
+    WaitingMannualReview6 = WithdrawalStatus(state="6", name="waiting mannual review")
+    Approved = WithdrawalStatus(state="7", name="approved")
+    WaitingMannualReview8 = WithdrawalStatus(state="8", name="waiting mannual review")
+    WaitingMannualReview9 = WithdrawalStatus(state="9", name="waiting mannual review")
+    WaitingTransfer = WithdrawalStatus(state="10", name="waiting transfer")
+    WaitingMannualReview12 = WithdrawalStatus(state="12", name="waiting mannual review")
 
     statuses_dict = {
-        '-3': Canceling,
-        '-2': Canceled,
-        '-1': Failed,
-        '0': WaitingWithdrawal,
-        '1': Withdrawing,
-        '2': WithdrawSuccess,
-        '4': WaitingMannualReview4,
-        '5': WaitingMannualReview5,
-        '6': WaitingMannualReview6,
-        '7': Approved,
-        '8': WaitingMannualReview8,
-        '9': WaitingMannualReview9,
-        '10': WaitingTransfer,
-        '12': WaitingMannualReview12
+        "-3": Canceling,
+        "-2": Canceled,
+        "-1": Failed,
+        "0": WaitingWithdrawal,
+        "1": Withdrawing,
+        "2": WithdrawSuccess,
+        "4": WaitingMannualReview4,
+        "5": WaitingMannualReview5,
+        "6": WaitingMannualReview6,
+        "7": Approved,
+        "8": WaitingMannualReview8,
+        "9": WaitingMannualReview9,
+        "10": WaitingTransfer,
+        "12": WaitingMannualReview12,
     }
 
 
@@ -268,27 +273,27 @@ class Withdrawal(ReprWithoutData):
 
         """
         self.data: Dict[str, Any] = data
-        self.chain: str = '-'.join(data.get('chain').split('-')[1:])
-        self.fee: float = float(data.get('fee'))
-        self.token_symbol: str = data.get('ccy')
-        self.clientId: Optional[int] = data.get('clientId')
+        self.chain: str = "-".join(data.get("chain").split("-")[1:])
+        self.fee: float = float(data.get("fee"))
+        self.token_symbol: str = data.get("ccy")
+        self.clientId: Optional[int] = data.get("clientId")
         self.clientId = int(self.clientId) if self.clientId else None
-        self.amt: float = float(data.get('amt'))
-        self.txId: str = data.get('txId')
-        self.from_: str = data.get('from')
-        self.areaCodeFrom: str = data.get('areaCodeFrom')
-        self.to_: str = data.get('to')
-        self.areaCodeTo: str = data.get('areaCodeTo')
-        self.state: Optional[WithdrawalStatus] = WithdrawalStatuses.statuses_dict.get(data.get('state'))
-        self.ts: int = data.get('ts')
+        self.amt: float = float(data.get("amt"))
+        self.txId: str = data.get("txId")
+        self.from_: str = data.get("from")
+        self.areaCodeFrom: str = data.get("areaCodeFrom")
+        self.to_: str = data.get("to")
+        self.areaCodeTo: str = data.get("areaCodeTo")
+        self.state: Optional[WithdrawalStatus] = WithdrawalStatuses.statuses_dict.get(data.get("state"))
+        self.ts: int = data.get("ts")
         self.ts = int(int(self.ts) / 1000) if self.ts else 0
-        self.wdId: int = int(data.get('wdId'))
-        self.nonTradableAsset: Optional[bool] = data.get('nonTradableAsset')
-        self.tag: Optional[str] = data.get('tag')
-        self.pmtId: Optional[str] = data.get('pmtId')
-        self.memo: Optional[str] = data.get('memo')
-        self.addrEx: Optional[str] = data.get('addrEx')
-        self.feeCcy: Optional[str] = data.get('feeCcy')
+        self.wdId: int = int(data.get("wdId"))
+        self.nonTradableAsset: Optional[bool] = data.get("nonTradableAsset")
+        self.tag: Optional[str] = data.get("tag")
+        self.pmtId: Optional[str] = data.get("pmtId")
+        self.memo: Optional[str] = data.get("memo")
+        self.addrEx: Optional[str] = data.get("addrEx")
+        self.feeCcy: Optional[str] = data.get("feeCcy")
 
 
 class WithdrawalToken(ReprWithoutData):
@@ -315,12 +320,12 @@ class WithdrawalToken(ReprWithoutData):
 
         """
         self.data: Dict[str, Any] = data
-        self.amt: float = float(data.get('amt'))
-        self.wdId: int = int(data.get('wdId'))
-        self.token_symbol: str = data.get('ccy')
-        self.clientId: Optional[int] = data.get('clientId')
+        self.amt: float = float(data.get("amt"))
+        self.wdId: int = int(data.get("wdId"))
+        self.token_symbol: str = data.get("ccy")
+        self.clientId: Optional[int] = data.get("clientId")
         self.clientId = int(self.clientId) if self.clientId else None
-        self.chain: str = '-'.join(data.get('chain').split('-')[1:])
+        self.chain: str = "-".join(data.get("chain").split("-")[1:])
 
 
 @dataclass
@@ -328,6 +333,7 @@ class TransferType(StateName):
     """
     An instance of a transfer type.
     """
+
     pass
 
 
@@ -335,19 +341,14 @@ class TransferTypes:
     """
     An instance with all transfer types.
     """
-    WithinAccount = TransferType(state='0', name='within account')
-    MasterToSub = TransferType(state='1', name='master to sub')
-    SubToMasterMasterKey = TransferType(state='2', name='sub to master master key')
-    SubToMasterSubKey = TransferType(state='3', name='sub to master sub key')
-    SubToSub = TransferType(state='4', name='sub to sub')
 
-    statuses_dict = {
-        '0': WithinAccount,
-        '1': MasterToSub,
-        '2': SubToMasterMasterKey,
-        '3': SubToMasterSubKey,
-        '4': SubToSub
-    }
+    WithinAccount = TransferType(state="0", name="within account")
+    MasterToSub = TransferType(state="1", name="master to sub")
+    SubToMasterMasterKey = TransferType(state="2", name="sub to master master key")
+    SubToMasterSubKey = TransferType(state="3", name="sub to master sub key")
+    SubToSub = TransferType(state="4", name="sub to sub")
+
+    statuses_dict = {"0": WithinAccount, "1": MasterToSub, "2": SubToMasterMasterKey, "3": SubToMasterSubKey, "4": SubToSub}
 
 
 class Transfer(ReprWithoutData):
@@ -374,10 +375,10 @@ class Transfer(ReprWithoutData):
 
         """
         self.data: Dict[str, Any] = data
-        self.transId: int = int(data.get('transId'))
-        self.clientId: Optional[int] = data.get('clientId')
+        self.transId: int = int(data.get("transId"))
+        self.clientId: Optional[int] = data.get("clientId")
         self.clientId = int(self.clientId) if self.clientId else None
-        self.token_symbol: str = data.get('ccy')
-        self.from_: AccountType = AccountTypes.types_dict.get(data.get('from'))
-        self.amt: float = float(data.get('amt'))
-        self.to_: AccountType = AccountTypes.types_dict.get(data.get('to'))
+        self.token_symbol: str = data.get("ccy")
+        self.from_: AccountType = AccountTypes.types_dict.get(data.get("from"))
+        self.amt: float = float(data.get("amt"))
+        self.to_: AccountType = AccountTypes.types_dict.get(data.get("to"))

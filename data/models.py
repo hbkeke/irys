@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 
-from data.settings import Settings
 from data.config import ABIS_DIR
-from libs.py_okx_async.models import OKXCredentials
+from data.settings import Settings
 from libs.eth_async.classes import Singleton
 from libs.eth_async.data.models import DefaultABIs, RawContract
 from libs.eth_async.utils.files import read_json
+from libs.py_okx_async.models import OKXCredentials
 
 
 class Contracts(Singleton):
@@ -17,12 +17,15 @@ class Contracts(Singleton):
 
     IRYS_WEEP_NFT = RawContract(title="IRYS_WEEP_NFT", address="0xB041bF74fe472CAB9e1cacb1DAF92d51B0B87aC7", abi=DefaultABIs.ERC721)
 
+
 settings = Settings()
+
 
 @dataclass
 class FromTo:
     from_: int | float
     to_: int | float
+
 
 class OkxModel:
     required_minimum_balance: float
@@ -30,11 +33,6 @@ class OkxModel:
     delay_between_withdrawals: FromTo
     credentials: OKXCredentials
 
-okx = OkxModel(
 
-)
-okx_credentials = OKXCredentials(
-            api_key=settings.okx_api_key,
-            secret_key=settings.okx_api_secret,
-            passphrase=settings.okx_passphrase
-        )
+okx = OkxModel()
+okx_credentials = OKXCredentials(api_key=settings.okx_api_key, secret_key=settings.okx_api_secret, passphrase=settings.okx_passphrase)

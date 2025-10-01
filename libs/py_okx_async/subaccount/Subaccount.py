@@ -13,11 +13,11 @@ class Subaccount(Base):
         section (str): a section name.
 
     """
-    section: str = 'subaccount'
+
+    section: str = "subaccount"
 
     async def list(
-            self, enable: bool | None = None, subAcct: str | None = None, after: int | None = None,
-            before: int | None = None, limit: int = 100
+        self, enable: bool | None = None, subAcct: str | None = None, after: int | None = None, before: int | None = None, limit: int = 100
     ) -> dict[str, SubaccountInfo]:
         """
         Get a dictionary with sub-account names and information about them.
@@ -35,25 +35,21 @@ class Subaccount(Base):
             dict[str, SubaccountInfo]: the dictionary with sub-account names and information about them.
 
         """
-        method = 'list'
-        body = {
-            'enable': enable,
-            'subAcct': subAcct,
-            'limit': limit
-        }
+        method = "list"
+        body = {"enable": enable, "subAcct": subAcct, "limit": limit}
 
         if after:
-            body['after'] = await secs_to_millisecs(secs=after)
+            body["after"] = await secs_to_millisecs(secs=after)
 
         if before:
-            body['before'] = await secs_to_millisecs(secs=before)
+            body["before"] = await secs_to_millisecs(secs=before)
 
         response = await self.make_request(
-            method=Methods.GET, request_path=f'/api/v5/users/{self.section}/{method}', body=request_params(body)
+            method=Methods.GET, request_path=f"/api/v5/users/{self.section}/{method}", body=request_params(body)
         )
         subaccounts = {}
-        for token in response.get('data'):
-            subaccounts[token.get('subAcct')] = SubaccountInfo(data=token)
+        for token in response.get("data"):
+            subaccounts[token.get("subAcct")] = SubaccountInfo(data=token)
 
         return subaccounts
 
@@ -71,16 +67,13 @@ class Subaccount(Base):
                 of a sub-account.
 
         """
-        method = 'balances'
-        body = {
-            'subAcct': subAcct,
-            'ccy': token_symbol
-        }
+        method = "balances"
+        body = {"subAcct": subAcct, "ccy": token_symbol}
         response = await self.make_request(
-            method=Methods.GET, request_path=f'/api/v5/asset/{self.section}/{method}', body=request_params(body)
+            method=Methods.GET, request_path=f"/api/v5/asset/{self.section}/{method}", body=request_params(body)
         )
         tokens = {}
-        for token in response.get('data'):
-            tokens[token.get('ccy')] = FundingToken(data=token)
+        for token in response.get("data"):
+            tokens[token.get("ccy")] = FundingToken(data=token)
 
         return tokens

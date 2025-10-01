@@ -27,7 +27,8 @@ class Asset(Base):
         section (str): a section name.
 
     """
-    section: str = 'asset'
+
+    section: str = "asset"
 
     async def currencies(self, token_symbol: Optional[str] = None) -> Dict[str, Dict[str, Currency]]:
         """
@@ -42,17 +43,13 @@ class Asset(Base):
                 withdrawn.
 
         """
-        method = 'currencies'
-        body = {
-            'ccy': token_symbol
-        }
-        response = await self.make_request(
-            method=Methods.GET, request_path=f'/api/v5/{self.section}/{method}', body=request_params(body)
-        )
+        method = "currencies"
+        body = {"ccy": token_symbol}
+        response = await self.make_request(method=Methods.GET, request_path=f"/api/v5/{self.section}/{method}", body=request_params(body))
         currencies = {}
-        for currency in response.get('data'):
-            token_symbol = currency.get('ccy')
-            chain = '-'.join(currency.get('chain').split('-')[1:])
+        for currency in response.get("data"):
+            token_symbol = currency.get("ccy")
+            chain = "-".join(currency.get("chain").split("-")[1:])
             if token_symbol not in currencies:
                 currencies[token_symbol] = {}
 
@@ -73,24 +70,26 @@ class Asset(Base):
             Dict[str, FundingToken]: the dictionary with tokens and their balances in the funding account.
 
         """
-        method = 'balances'
-        body = {
-            'ccy': token_symbol
-        }
-        response = await self.make_request(
-            method=Methods.GET, request_path=f'/api/v5/{self.section}/{method}', body=request_params(body)
-        )
+        method = "balances"
+        body = {"ccy": token_symbol}
+        response = await self.make_request(method=Methods.GET, request_path=f"/api/v5/{self.section}/{method}", body=request_params(body))
         tokens = {}
-        for token in response.get('data'):
-            tokens[token.get('ccy')] = FundingToken(data=token)
+        for token in response.get("data"):
+            tokens[token.get("ccy")] = FundingToken(data=token)
 
         return tokens
 
     async def deposit_history(
-            self, token_symbol: Optional[str] = None, depId: Optional[Union[str, int]] = None,
-            fromWdId: Optional[Union[str, int]] = None, txId: Optional[str] = None,
-            type: Optional[TransactionType] = None, state: Optional[DepositStatus] = None,
-            after: Optional[int] = None, before: Optional[int] = None, limit: int = 100
+        self,
+        token_symbol: Optional[str] = None,
+        depId: Optional[Union[str, int]] = None,
+        fromWdId: Optional[Union[str, int]] = None,
+        txId: Optional[str] = None,
+        type: Optional[TransactionType] = None,
+        state: Optional[DepositStatus] = None,
+        after: Optional[int] = None,
+        before: Optional[int] = None,
+        limit: int = 100,
     ) -> Dict[int, Deposit]:
         """
         Get a dictionary with deposit IDs and information about deposits.
@@ -113,37 +112,41 @@ class Asset(Base):
             Dict[int, Deposit]: the dictionary with deposit IDs and information about deposits.
 
         """
-        method = 'deposit-history'
+        method = "deposit-history"
         body = {
-            'ccy': token_symbol,
-            'depId': str(depId) if depId else None,
-            'fromWdId': str(fromWdId) if fromWdId else None,
-            'txId': txId,
-            'type': type.state if type else None,
-            'state': state.state if state else None,
-            'limit': limit
+            "ccy": token_symbol,
+            "depId": str(depId) if depId else None,
+            "fromWdId": str(fromWdId) if fromWdId else None,
+            "txId": txId,
+            "type": type.state if type else None,
+            "state": state.state if state else None,
+            "limit": limit,
         }
 
         if after:
-            body['after'] = secs_to_millisecs(secs=after)
+            body["after"] = secs_to_millisecs(secs=after)
 
         if before:
-            body['before'] = secs_to_millisecs(secs=before)
+            body["before"] = secs_to_millisecs(secs=before)
 
-        response = await self.make_request(
-            method=Methods.GET, request_path=f'/api/v5/{self.section}/{method}', body=request_params(body)
-        )
+        response = await self.make_request(method=Methods.GET, request_path=f"/api/v5/{self.section}/{method}", body=request_params(body))
         deposits = {}
-        for deposit in response.get('data'):
-            deposits[int(deposit.get('depId'))] = Deposit(data=deposit)
+        for deposit in response.get("data"):
+            deposits[int(deposit.get("depId"))] = Deposit(data=deposit)
 
         return deposits
 
     async def withdrawal_history(
-            self, token_symbol: Optional[str] = None, wdId: Optional[Union[str, int]] = None,
-            clientId: Optional[Union[str, int]] = None, txId: Optional[str] = None,
-            type: Optional[TransactionType] = None, state: Optional[WithdrawalStatus] = None,
-            after: Optional[int] = None, before: Optional[int] = None, limit: int = 100
+        self,
+        token_symbol: Optional[str] = None,
+        wdId: Optional[Union[str, int]] = None,
+        clientId: Optional[Union[str, int]] = None,
+        txId: Optional[str] = None,
+        type: Optional[TransactionType] = None,
+        state: Optional[WithdrawalStatus] = None,
+        after: Optional[int] = None,
+        before: Optional[int] = None,
+        limit: int = 100,
     ) -> Dict[int, Withdrawal]:
         """
         Get a dictionary with withdrawal IDs and information about withdrawals.
@@ -165,36 +168,40 @@ class Asset(Base):
             Dict[int, Withdrawal]: the dictionary with withdrawal IDs and information about withdrawals.
 
         """
-        method = 'withdrawal-history'
+        method = "withdrawal-history"
         body = {
-            'ccy': token_symbol,
-            'wdId': str(wdId) if wdId else None,
-            'clientId': str(clientId) if clientId else None,
-            'txId': txId,
-            'type': type.state if type else None,
-            'state': state.state if state else None,
-            'limit': limit
+            "ccy": token_symbol,
+            "wdId": str(wdId) if wdId else None,
+            "clientId": str(clientId) if clientId else None,
+            "txId": txId,
+            "type": type.state if type else None,
+            "state": state.state if state else None,
+            "limit": limit,
         }
 
         if after:
-            body['after'] = await secs_to_millisecs(secs=after)
+            body["after"] = await secs_to_millisecs(secs=after)
 
         if before:
-            body['before'] = await secs_to_millisecs(secs=before)
+            body["before"] = await secs_to_millisecs(secs=before)
 
-        response = await self.make_request(
-            method=Methods.GET, request_path=f'/api/v5/{self.section}/{method}', body=request_params(body)
-        )
+        response = await self.make_request(method=Methods.GET, request_path=f"/api/v5/{self.section}/{method}", body=request_params(body))
         withdrawals = {}
-        for withdrawal in response.get('data'):
-            withdrawals[int(withdrawal.get('wdId'))] = Withdrawal(data=withdrawal)
+        for withdrawal in response.get("data"):
+            withdrawals[int(withdrawal.get("wdId"))] = Withdrawal(data=withdrawal)
 
         return withdrawals
 
     async def withdrawal(
-            self, token_symbol: str, amount: Union[float, int, str], toAddr: str, chain: str,
-            dest: TransactionType = TransactionTypes.OnChain, fee: Optional[Union[float, int, str]] = None,
-            areaCode: Union[int, str] = None, clientId: Optional[Union[str, int]] = None
+        self,
+        token_symbol: str,
+        amount: Union[float, int, str],
+        toAddr: str,
+        chain: str,
+        dest: TransactionType = TransactionTypes.OnChain,
+        fee: Optional[Union[float, int, str]] = None,
+        areaCode: Union[int, str] = None,
+        clientId: Optional[Union[str, int]] = None,
     ) -> WithdrawalToken:
         """
         Withdraw funds from the funding account.
@@ -217,26 +224,24 @@ class Asset(Base):
             WithdrawalToken: an instance with information about the withdrawal.
 
         """
-        method = 'withdrawal'
-        #if not fee:
-        chain = 'BSC' if chain.lower() == 'bsc' else chain
+        method = "withdrawal"
+        # if not fee:
+        chain = "BSC" if chain.lower() == "bsc" else chain
         currency = await self.currencies(token_symbol=token_symbol)
         fee = currency[token_symbol][chain].minFee
 
         body = {
-            'ccy': token_symbol,
-            'amt': str(amount),
-            'dest': dest.state,
-            'toAddr': toAddr,
-            'fee': str(fee),
-            'chain': chain if token_symbol in chain else f'{token_symbol}-{chain}',
-            'areaCode': str(areaCode) if areaCode else None,
-            'clientId': str(clientId) if clientId else None
+            "ccy": token_symbol,
+            "amt": str(amount),
+            "dest": dest.state,
+            "toAddr": toAddr,
+            "fee": str(fee),
+            "chain": chain if token_symbol in chain else f"{token_symbol}-{chain}",
+            "areaCode": str(areaCode) if areaCode else None,
+            "clientId": str(clientId) if clientId else None,
         }
-        response = await self.make_request(
-            method=Methods.POST, request_path=f'/api/v5/{self.section}/{method}', body=request_params(body)
-        )
-        return WithdrawalToken(data=response.get('data')[0])
+        response = await self.make_request(method=Methods.POST, request_path=f"/api/v5/{self.section}/{method}", body=request_params(body))
+        return WithdrawalToken(data=response.get("data")[0])
 
     async def cancel_withdrawal(self, wdId: Union[str, int]) -> int:
         """
@@ -249,20 +254,22 @@ class Asset(Base):
             int: the withdrawal ID.
 
         """
-        method = 'cancel-withdrawal'
-        body = {
-            'wdId': str(wdId)
-        }
-        response = await self.make_request(
-            method=Methods.POST, request_path=f'/api/v5/{self.section}/{method}', body=request_params(body)
-        )
-        return int(response.get('data')[0]['wdId'])
+        method = "cancel-withdrawal"
+        body = {"wdId": str(wdId)}
+        response = await self.make_request(method=Methods.POST, request_path=f"/api/v5/{self.section}/{method}", body=request_params(body))
+        return int(response.get("data")[0]["wdId"])
 
     async def transfer(
-            self, token_symbol: str, amount: Union[float, int, str], from_: AccountType = AccountTypes.Funding,
-            to_: AccountType = AccountTypes.Trading, subAcct: Optional[str] = None,
-            type: TransferType = TransferTypes.WithinAccount, loanTrans: bool = False,
-            clientId: Optional[Union[str, int]] = None, omitPosRisk: bool = False
+        self,
+        token_symbol: str,
+        amount: Union[float, int, str],
+        from_: AccountType = AccountTypes.Funding,
+        to_: AccountType = AccountTypes.Trading,
+        subAcct: Optional[str] = None,
+        type: TransferType = TransferTypes.WithinAccount,
+        loanTrans: bool = False,
+        clientId: Optional[Union[str, int]] = None,
+        omitPosRisk: bool = False,
     ) -> Transfer:
         """
         Transfer tokens within account or between sub-accounts.
@@ -284,19 +291,17 @@ class Asset(Base):
             TransferredToken: an instance with information about the transfer.
 
         """
-        method = 'transfer'
+        method = "transfer"
         body = {
-            'ccy': token_symbol,
-            'amt': str(amount),
-            'from_': from_.state,
-            'to_': to_.state,
-            'subAcct': subAcct,
-            'type': type.state,
-            'loanTrans': loanTrans,
-            'clientId': str(clientId) if clientId else None,
-            'omitPosRisk': omitPosRisk
+            "ccy": token_symbol,
+            "amt": str(amount),
+            "from_": from_.state,
+            "to_": to_.state,
+            "subAcct": subAcct,
+            "type": type.state,
+            "loanTrans": loanTrans,
+            "clientId": str(clientId) if clientId else None,
+            "omitPosRisk": omitPosRisk,
         }
-        response = await self.make_request(
-            method=Methods.POST, request_path=f'/api/v5/{self.section}/{method}', body=request_params(body)
-        )
-        return Transfer(data=response.get('data')[0])
+        response = await self.make_request(method=Methods.POST, request_path=f"/api/v5/{self.section}/{method}", body=request_params(body))
+        return Transfer(data=response.get("data")[0])

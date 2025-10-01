@@ -21,6 +21,7 @@ class APIException(OKXClientException):
         status_code (Optional[int]): an HTTP status code. (None)
 
     """
+
     response: dict | None
     status_code: int | None
     code: int
@@ -30,14 +31,14 @@ class APIException(OKXClientException):
         self.response = response
         self.status_code = status_code
         try:
-            self.code = int(self.response.get('code'))
-            self.msg = self.response.get('msg')
+            self.code = int(self.response.get("code"))
+            self.msg = self.response.get("msg")
 
         except:
             pass
 
     def __str__(self) -> str:
         if self.code:
-            return f'{self.code}, {self.msg}'
+            return f"{self.code}, {self.msg}"
 
-        return f'{self.status_code} (HTTP)'
+        return f"{self.status_code} (HTTP)"
