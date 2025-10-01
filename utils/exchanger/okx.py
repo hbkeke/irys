@@ -5,10 +5,10 @@ from loguru import logger
 
 from data.models import okx_credentials
 from data.settings import Settings
-from libs.py_okx_async.asset.models import Currency, TransferTypes, Withdrawal
-from libs.py_okx_async.exceptions import APIException
-from libs.py_okx_async.models import AccountTypes, Chains, OKXCredentials
-from libs.py_okx_async.OKXClient import OKXClient
+from libs.exchanger.okx.asset.models import Currency, TransferTypes, Withdrawal
+from libs.exchanger.okx.exceptions import APIException
+from libs.exchanger.okx.models import AccountTypes, Chains, OKXCredentials
+from libs.exchanger.okx.OKXClient import OKXClient
 from utils.db_api.models import Wallet
 
 

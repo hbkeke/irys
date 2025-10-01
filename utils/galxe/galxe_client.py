@@ -12,7 +12,7 @@ from libs.base import Base
 from libs.eth_async.client import Client
 from libs.eth_async.data.models import Network, Networks, TokenAmount
 from utils.browser import Browser
-from utils.cex_withdrawal import OKXActions
+from utils.exchanger.okx import OKXActions
 from utils.db_api.models import Wallet
 from utils.retry import async_retry
 

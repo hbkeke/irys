@@ -5,8 +5,8 @@ from datetime import datetime
 from urllib.parse import urlencode
 
 from libs.eth_async.utils.web_requests import async_get, async_post
-from libs.py_okx_async import exceptions
-from libs.py_okx_async.models import Methods, OKXCredentials
+from libs.exchanger.okx import exceptions
+from libs.exchanger.okx.models import Methods, OKXCredentials
 
 
 class Base:

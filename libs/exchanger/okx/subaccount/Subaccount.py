@@ -1,8 +1,8 @@
 from libs.eth_async.utils.web_requests import request_params
-from libs.py_okx_async.Base import Base
-from libs.py_okx_async.models import FundingToken, Methods
-from libs.py_okx_async.subaccount.models import SubaccountInfo
-from libs.py_okx_async.utils import secs_to_millisecs
+from libs.exchanger.okx.Base import Base
+from libs.exchanger.okx.models import FundingToken, Methods
+from libs.exchanger.okx.subaccount.models import SubaccountInfo
+from libs.exchanger.okx.utils import secs_to_millisecs
 
 
 class Subaccount(Base):

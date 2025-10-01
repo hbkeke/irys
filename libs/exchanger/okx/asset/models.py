@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-from libs.py_okx_async.models import AccountType, AccountTypes, ReprWithoutData, StateName
+from libs.exchanger.okx.models import AccountType, AccountTypes, ReprWithoutData, StateName
 
 
 class Currency(ReprWithoutData):

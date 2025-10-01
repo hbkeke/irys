@@ -1,7 +1,7 @@
 from typing import Dict, Optional, Union
 
 from libs.eth_async.utils.web_requests import request_params
-from libs.py_okx_async.asset.models import (
+from libs.exchanger.okx.asset.models import (
     Currency,
     Deposit,
     DepositStatus,
@@ -14,9 +14,9 @@ from libs.py_okx_async.asset.models import (
     WithdrawalStatus,
     WithdrawalToken,
 )
-from libs.py_okx_async.Base import Base
-from libs.py_okx_async.models import AccountType, AccountTypes, FundingToken, Methods
-from libs.py_okx_async.utils import secs_to_millisecs
+from libs.exchanger.okx.Base import Base
+from libs.exchanger.okx.models import AccountType, AccountTypes, FundingToken, Methods
+from libs.exchanger.okx.utils import secs_to_millisecs
 
 
 class Asset(Base):

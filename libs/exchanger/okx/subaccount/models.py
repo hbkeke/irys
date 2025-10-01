@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from libs.py_okx_async.models import ReprWithoutData, StateName
+from libs.exchanger.okx.models import ReprWithoutData, StateName
 
 
 @dataclass

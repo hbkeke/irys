@@ -1,9 +1,9 @@
 import requests
 
-from libs.py_okx_async.asset.Asset import Asset
-from libs.py_okx_async.exceptions import InvalidProxy
-from libs.py_okx_async.models import OKXCredentials
-from libs.py_okx_async.subaccount.Subaccount import Subaccount
+from libs.exchanger.okx.asset.Asset import Asset
+from libs.exchanger.okx.exceptions import InvalidProxy
+from libs.exchanger.okx.models import OKXCredentials
+from libs.exchanger.okx.subaccount.Subaccount import Subaccount
 
 
 class OKXClient:
