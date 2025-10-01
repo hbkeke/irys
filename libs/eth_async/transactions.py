@@ -189,8 +189,8 @@ class Transactions:
             tx_params["gasPrice"] = (await self.gas_price()).Wei
 
         if "maxFeePerGas" in tx_params and "maxPriorityFeePerGas" not in tx_params:
-            tx_params["maxPriorityFeePerGas"] = int((await self.max_priority_fee()).Wei * random.uniform(1.1, 1.5))
-            tx_params["maxFeePerGas"] = tx_params["maxFeePerGas"] + tx_params["maxPriorityFeePerGas"]
+            tx_params["maxPriorityFeePerGas"] = int((await self.max_priority_fee()).Wei)
+            tx_params["maxFeePerGas"] = (tx_params["maxFeePerGas"] + tx_params["maxPriorityFeePerGas"]) * random.uniform(1.1, 1.5)
 
         if "gas" not in tx_params or not int(tx_params["gas"]):
             tx_params["gas"] = (await self.estimate_gas(tx_params=tx_params)).Wei
