@@ -129,9 +129,6 @@ random_pause_start_wallet:
 #Perform automatic replacement from proxy reserve files
 auto_replace_proxy: true
 
-# Api Key from https://dash.capmonster.cloud/
-capmonster_api_key: ""
-
 #Network can use for bridge to Gravity, for Galxe quests. Available: ethereum, arbitrum, base, optimism, ink, mode, bsc, op_bnb, polygon, soneium, lisk, unichain, avalanche, zksync 
 network_for_bridge: [arbitrum, optimism, base]
 random_eth_for_bridge:
