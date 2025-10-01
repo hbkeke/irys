@@ -125,7 +125,7 @@ class Quests(Irys):
                     else:
                         continue
 
-            if await self.check_available_claim() or await galxe_client.get_subscription():
+            if await galxe_client.get_subscription() or await self.check_available_claim():
                 await galxe_client.claim_points(campaign_id=campaign_id)
 
     async def complete_irysverse_quiz(self, galxe_client: GalxeClient):
@@ -165,7 +165,7 @@ class Quests(Irys):
                             await asyncio.sleep(60)
                             continue
 
-            if await self.check_available_claim() or await galxe_client.get_subscription():
+            if await galxe_client.get_subscription() or await self.check_available_claim():
                 await galxe_client.claim_points(campaign_id=campaign_id)
 
     async def complete_daily_irysverse_galxe_quests(self, galxe_client: GalxeClient):
@@ -205,7 +205,7 @@ class Quests(Irys):
                             logger.warning(f"{self.wallet} can't sync quest for {tier['name']} on Galxe. Sleep 60 seconds")
                             await asyncio.sleep(60)
 
-            if await self.check_available_claim() or await galxe_client.get_subscription():
+            if await galxe_client.get_subscription() or await self.check_available_claim():
                 await galxe_client.claim_points(campaign_id=campaign_id)
 
     async def complete_twitter_galxe_quests(self, galxe_client: GalxeClient):
@@ -315,7 +315,7 @@ class Quests(Irys):
                                 continue
                     else:
                         try:
-                            if await self.check_available_claim() or await galxe_client.get_subscription():
+                            if await galxe_client.get_subscription() or await self.check_available_claim():
                                 await galxe_client.claim_points(campaign_id=campaign_id)
                         except Exception as e:
                             logger.info(f"{self.wallet} already claimed points for {tier['name']} quest")
