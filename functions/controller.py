@@ -48,9 +48,7 @@ class Controller:
     async def complete_galxe_quests(self):
         galxe_client = GalxeClient(wallet=self.wallet, client=self.client)
         if await galxe_client.handle_subscribe():
-            logger.info(f"{self.wallet} sleep 30 seconds after subscription")
-            await asyncio.sleep(30)
-            galxe_client = GalxeClient(wallet=self.wallet, client=self.client)
+            logger.success(f"{self.wallet} subscribed to Galxe Premium")
 
         functions = [
             self.quest_client.complete_twitter_galxe_quests,

@@ -27,8 +27,11 @@ class Quests(Irys):
         gold = info["data"]["addressInfo"]["userLevel"]["gold"]
         value = info["data"]["addressInfo"]["userLevel"]["level"]["value"]
 
-        if int(gold) < 799 or int(value) < 3:
-            logger.warning(f"{self.wallet} don’t have enough criteria to open the legendary box. Have GG: {gold}. Have Lvl: {value}")
+        required_gold_min = 799
+        if int(gold) < required_gold_min or int(value) < 3:
+            logger.warning(
+                f"{self.wallet} don’t have enough {required_gold_min} GG to open the legendary box. Have GG: {gold}. Have Lvl: {value}"
+            )
             return False
 
         box = await galxe_client.check_available_legend_box()
